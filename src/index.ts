@@ -159,11 +159,29 @@ export interface ThreadResponse {
 }
 
 // ── Overlay state types ─────────────────────────────────────────
+/**
+ * On-chain anchor for a topic's state-root (when present in /state). The
+ * overlay periodically publishes each topic's root as a chained 1Sat
+ * anchor-token; this is the latest one. `matchesLive` is true when the
+ * currently-served stateRoot equals the anchored root (i.e. current state is
+ * on-chain). Absent/null until anchoring is enabled. */
+export interface TopicAnchor {
+  root: string
+  txid: string
+  vout: number
+  outpoint: string
+  blockHeight: number | null
+  ts: number | null
+  anchoredAt: string | null
+  matchesLive: boolean
+}
+
 export interface TopicState {
   topic: string
   count: number
   stateRoot: string
   source: string
+  anchor?: TopicAnchor | null
 }
 
 export interface OverlayState {
@@ -382,6 +400,54 @@ export class OverlayClient {
       return s.topics.find((t) => t.topic === topic) ?? null
     } catch {
       return null
+    }
+  }
+
+  /**
+   * Latest on-chain anchor for a topic's state-root, or null when nothing is
+   * anchored yet (anchoring not enabled, or topic untracked). Client-side find
+   * over getState().
+   */
+  async getAnchor(topic: string): Promise<TopicAnchor | null> {
+    if (!topic) return null
+    try {
+      const s = await this.getState()
+      return s.topics.find((t) => t.topic === topic)?.anchor ?? null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Verify the current state-root against the chain. Returns whether the topic
+   * has any anchor, whether the live root matches the anchored root
+   * (`matchesLive`), and the anchor txid for independent BEEF verification.
+   * Does NOT itself fetch a Merkle proof — use `txid` against block headers
+   * (BRC-62) for full proof.
+   */
+  async verifyRoot(topic: string): Promise<{
+    anchored: boolean
+    matchesLive: boolean
+    liveRoot: string | null
+    anchoredRoot: string | null
+    txid: string | null
+  }> {
+    const empty = { anchored: false, matchesLive: false, liveRoot: null, anchoredRoot: null, txid: null }
+    if (!topic) return empty
+    try {
+      const s = await this.getState()
+      const t = s.topics.find((x) => x.topic === topic)
+      if (!t) return empty
+      const a = t.anchor ?? null
+      return {
+        anchored: !!a,
+        matchesLive: !!a && a.matchesLive,
+        liveRoot: t.stateRoot ?? null,
+        anchoredRoot: a?.root ?? null,
+        txid: a?.txid ?? null,
+      }
+    } catch {
+      return empty
     }
   }
 }
