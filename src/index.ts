@@ -41,6 +41,20 @@ export interface ResolveIdentitiesResponse {
   identities: Record<string, ResolvedIdentity>
 }
 
+/** A ResolvedIdentity plus when its ProfileToken was minted (for discovery sort). */
+export interface DiscoveredIdentity extends ResolvedIdentity {
+  mintedAt: string | null
+}
+
+export interface ListIdentitiesResponse {
+  status: string
+  count: number
+  total: number
+  limit: number
+  offset: number
+  identities: DiscoveredIdentity[]
+}
+
 /**
  * Full bundle from GET /identity/:pubkey. NOTE the contract divergence: this
  * route exposes a RESOLVED `avatarUrl` (https), whereas resolveIdentities and
@@ -331,6 +345,23 @@ export class OverlayClient {
     )
     if (!j || j.error || !Array.isArray(j.results) || j.results.length === 0) return null
     return j.results[0] ?? null
+  }
+
+  /**
+   * GET /v1/identities — people-discovery: list canonical profiles, newest
+   * first ("who's on the overlay"). Paginate with `limit` (max 200) / `offset`.
+   * Returns [] on any error so a discovery view never bricks.
+   */
+  async listIdentities(
+    params: { limit?: number; offset?: number } = {},
+  ): Promise<DiscoveredIdentity[]> {
+    const qs = new URLSearchParams()
+    if (params.limit !== undefined) qs.set('limit', String(params.limit))
+    if (params.offset !== undefined) qs.set('offset', String(params.offset))
+    const j = await this.getJsonOrNull<ListIdentitiesResponse>(
+      `/v1/identities${qs.toString() ? `?${qs.toString()}` : ''}`,
+    )
+    return j?.identities ?? []
   }
 
   // -- feed / posts ------------------------------------------------
