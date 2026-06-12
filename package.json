@@ -1,12 +1,17 @@
 {
   "name": "@overlay-social/sdk",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Minimal read-only client for overlay.peck.to — identity resolution, profiles, feed and overlay state over the canonical BSV/BRC-100 social overlay.",
   "license": "Open BSV License v5",
   "author": "Thomas Høiby",
   "homepage": "https://overlay.social",
-  "repository": { "type": "git", "url": "git+https://github.com/overlay-social/sdk.git" },
-  "bugs": { "url": "https://github.com/overlay-social/sdk/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overlay-social/sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/overlay-social/sdk/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -17,15 +22,29 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["bsv", "overlay", "brc-100", "identity", "peck", "social", "metanet"],
+  "keywords": [
+    "bsv",
+    "overlay",
+    "brc-100",
+    "identity",
+    "peck",
+    "social",
+    "metanet"
+  ],
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.4.5"

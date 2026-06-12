@@ -62,11 +62,18 @@ never throws.
 | `getIdentity(pubkey)` | `GET /identity/:pubkey` | `IdentityBundle \| null` |
 | `resolveHandle(handle)` | `GET /resolve/:handle` | `HandleResolution \| null` |
 | `getProfile({subject\|owner\|outpoint})` | `GET /v1/bio/profile` | `ProfileRow \| null` |
-| `getFeed(params)` | `GET /v1/feed` | `FeedResponse` (throws on upstream failure) |
+| `listIdentities({limit?, offset?})` | `GET /v1/identities` | `DiscoveredIdentity[]` (`[]` on error) |
+| `getFriends(subject)` | `GET /v1/friends/:subject` | `FriendsResponse` (mutual/pendingIn/pendingOut + legacy) |
+| `getNotifications(address, params?)` | `GET /v1/notifications/:address` | `NotificationItem[]` (`[]` on error) |
+| `getFollows(address)` | `GET /v1/follows/:address` | `FollowsResponse` |
+| `getBlocks(address, kind?)` | `GET /v1/blocks/:address` | `BlockEntry[]` (outgoing only, by design) |
+| `getFeed(params)` | `GET /v1/feed` (incl. `near`/`bbox` geo) | `FeedResponse` (throws on upstream failure) |
 | `getPost(txid)` | `GET /v1/post/:txid` | `PeckRow \| null` |
 | `getThread(txid)` | `GET /v1/thread/:txid` | `{post, replies}` |
-| `getState()` | `GET /state` | `OverlayState` |
-| `getTopicRoot(topic)` | client-side over `/state` | `TopicState \| null` |
+| `getState()` | `GET /state` | `OverlayState` (topics + on-chain anchors) |
+| `getTopicRoot(topic)` | `GET /v1/topic/:topic/root` (fallback `/state`) | `TopicState \| null` |
+| `getAnchor(topic)` | client-side over `/state` | `TopicAnchor \| null` |
+| `verifyRoot(topic)` | client-side over `/state` | `{anchored, matchesLive, liveRoot, anchoredRoot, txid}` |
 
 ### Avatar field divergence (read this)
 
@@ -81,15 +88,19 @@ Both are typed verbatim so you choose how to render.
 
 ## Data reality (honest)
 
-- `getFeed` runs against ~2.5M indexed pecks today — it is the only method with
-  rich live data, and most rows already carry a `display_name`.
-- Identity methods (`resolveIdentities`, `getIdentity`, `getProfile`,
-  `resolveHandle`) only return data for the handful of accounts that have a
-  minted, indexed **ProfileToken** (a few at time of writing — e.g. the handle
-  `thomas`). Everything else resolves empty. That is expected: enrichment is
-  additive and grows as ProfileTokens are minted/backfilled. The SDK shape is
-  already correct against the live contract — its value increases with adoption,
-  not with code changes.
+- `getFeed` runs against ~2.5M indexed pecks today — most rows already carry a
+  `display_name`.
+- The identity layer is live but small: light self-attested profiles/handles
+  (BRC-3) plus legacy ProfileTokens, with **key-binding collapse** — a bound
+  posting key or address resolves to its identity root's canonical profile.
+  Accounts without any attestation resolve empty; enrichment is additive and
+  grows with adoption.
+- `getFriends` reads the mutual-consent friendship layer (two one-way BRC-3
+  attestations = an active pair). Legacy BAP-era friend rows are exposed
+  display-only and never count toward mutual.
+- Every topic's Merkle state-root is **anchored on-chain** (1Sat ordinal with a
+  logical prev-chain); `verifyRoot(topic)` tells you whether the served state
+  matches the anchored root right now.
 
 ## Configuration
 
