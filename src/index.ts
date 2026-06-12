@@ -165,11 +165,74 @@ export interface FeedParams {
   author?: string
   order?: 'asc' | 'desc'
   before?: string // keyset cursor: ISO8601 | unix seconds
+  /**
+   * Geo: posts near a point. The overlay haversine-filters rows whose MAP
+   * carried lat/lng (peck.world pins, peck.to "add location" posts).
+   */
+  near?: { lat: number; lng: number }
+  /** Radius for `near` in km (overlay default applies when omitted). */
+  radiusKm?: number
+  /** Geo: bounding box [west, south, east, north]. Ignored when `near` set. */
+  bbox?: [number, number, number, number]
 }
 
 export interface ThreadResponse {
   post: PeckRow | null
   replies: PeckRow[]
+}
+
+// ── Social graph types ──────────────────────────────────────────
+
+/** One side of the friend graph, hydrated with the peer's canonical handle. */
+export interface FriendEntry {
+  /** Peer identity ROOT pubkey (66-hex compressed). */
+  peer: string
+  handle: string | null
+}
+
+/**
+ * GET /v1/friends/:subject — `light` is the mutual-consent friendship layer
+ * (two one-way BRC-3 attestations = an active pair). `legacy` mirrors the
+ * BAP-era Bitcoin Schema friend rows (read-only; never counts toward mutual).
+ */
+export interface FriendsResponse {
+  /** Active friendships: both directions attested and unrevoked. */
+  mutual: FriendEntry[]
+  /** They attested toward you; you have not (incoming requests). */
+  pendingIn: FriendEntry[]
+  /** You attested toward them; they have not (outgoing requests). */
+  pendingOut: FriendEntry[]
+  /** BAP-era rows (bapID/publicKey) — display-only. */
+  legacy: { outgoing: unknown[]; incoming: unknown[] }
+}
+
+/** One row from GET /v1/notifications/:address. */
+export interface NotificationItem {
+  type: 'like' | 'reply' | 'follow' | 'mention' | 'friend_request' | string
+  /**
+   * Who did it. Address/username formats for like/reply/follow/mention;
+   * identity ROOT pubkey for friend_request. Resolve via resolveIdentities
+   * (bound posting keys collapse to their identity).
+   */
+  actor: string
+  target_txid: string | null
+  subject_txid: string | null
+  timestamp: string | number | null
+}
+
+/** GET /v1/follows/:address. */
+export interface FollowsResponse {
+  followers: number
+  following: number
+  data: { followers: unknown[]; following: unknown[] }
+}
+
+/** One block/mute row from GET /v1/blocks/:address (outgoing only). */
+export interface BlockEntry {
+  blocked: string
+  kind: 'block' | 'mute' | string
+  timestamp?: string | number | null
+  [k: string]: unknown
 }
 
 // ── Overlay state types ─────────────────────────────────────────
@@ -364,6 +427,91 @@ export class OverlayClient {
     return j?.identities ?? []
   }
 
+  // -- social graph ------------------------------------------------
+
+  /**
+   * GET /v1/friends/:subject — mutual-consent friendship graph for an identity
+   * ROOT pubkey. `mutual` = both directions attested + unrevoked; `pendingIn`/
+   * `pendingOut` are one-way. Legacy BAP-era rows ride along display-only.
+   * Returns an EMPTY graph on any error so social UI never bricks.
+   */
+  async getFriends(subject: string): Promise<FriendsResponse> {
+    const empty: FriendsResponse = {
+      mutual: [], pendingIn: [], pendingOut: [],
+      legacy: { outgoing: [], incoming: [] },
+    }
+    if (!subject) return empty
+    try {
+      const j = await this.getJsonOrNull<{
+        light?: { mutual?: FriendEntry[]; pending_in?: FriendEntry[]; pending_out?: FriendEntry[] }
+        data?: { outgoing?: unknown[]; incoming?: unknown[] }
+      }>(`/v1/friends/${encodeURIComponent(subject)}`)
+      if (!j) return empty
+      return {
+        mutual: j.light?.mutual ?? [],
+        pendingIn: j.light?.pending_in ?? [],
+        pendingOut: j.light?.pending_out ?? [],
+        legacy: { outgoing: j.data?.outgoing ?? [], incoming: j.data?.incoming ?? [] },
+      }
+    } catch {
+      return empty
+    }
+  }
+
+  /**
+   * GET /v1/notifications/:address — interactions targeting a POSTING address
+   * (like/reply/follow/mention/friend_request), newest first. `mentions=false`
+   * skips the mention arm server-side. Returns [] on any error.
+   */
+  async getNotifications(
+    address: string,
+    params: { limit?: number; offset?: number; mentions?: boolean } = {},
+  ): Promise<NotificationItem[]> {
+    if (!address) return []
+    const qs = new URLSearchParams()
+    if (params.limit !== undefined) qs.set('limit', String(params.limit))
+    if (params.offset !== undefined) qs.set('offset', String(params.offset))
+    if (params.mentions === false) qs.set('mentions', '0')
+    try {
+      const j = await this.getJsonOrNull<{ data?: NotificationItem[] }>(
+        `/v1/notifications/${encodeURIComponent(address)}${qs.toString() ? `?${qs.toString()}` : ''}`,
+      )
+      return j?.data ?? []
+    } catch {
+      return []
+    }
+  }
+
+  /** GET /v1/follows/:address — follower/following counts + rows. Safe-empty. */
+  async getFollows(address: string): Promise<FollowsResponse> {
+    const empty: FollowsResponse = { followers: 0, following: 0, data: { followers: [], following: [] } }
+    if (!address) return empty
+    try {
+      const j = await this.getJsonOrNull<FollowsResponse>(`/v1/follows/${encodeURIComponent(address)}`)
+      return j ?? empty
+    } catch {
+      return empty
+    }
+  }
+
+  /**
+   * GET /v1/blocks/:address — this address's OUTGOING block/mute list (the
+   * overlay deliberately does not expose who-blocked-me). Filtering happens at
+   * the serve/render layer, never as deletion. Returns [] on any error.
+   */
+  async getBlocks(address: string, kind?: 'block' | 'mute'): Promise<BlockEntry[]> {
+    if (!address) return []
+    const qs = kind ? `?kind=${kind}` : ''
+    try {
+      const j = await this.getJsonOrNull<{ data?: BlockEntry[] }>(
+        `/v1/blocks/${encodeURIComponent(address)}${qs}`,
+      )
+      return j?.data ?? []
+    } catch {
+      return []
+    }
+  }
+
   // -- feed / posts ------------------------------------------------
 
   /** GET /v1/feed — list pecks. Throws on genuine upstream failure. */
@@ -382,6 +530,13 @@ export class OverlayClient {
     put('author', params.author)
     put('order', params.order ?? 'desc')
     put('before', params.before)
+    // Geo: ?near=lat,lng&radius_km= (haversine) or ?bbox=w,s,e,n. `near` wins.
+    if (params.near) {
+      put('near', `${params.near.lat},${params.near.lng}`)
+      put('radius_km', params.radiusKm)
+    } else if (params.bbox) {
+      put('bbox', params.bbox.join(','))
+    }
     const j = await this.getJson<FeedResponse>(`/v1/feed?${qs.toString()}`)
     if (!j || j.status !== 'ok' || !Array.isArray(j.data)) {
       throw new Error('overlay feed: unexpected shape')
@@ -420,12 +575,22 @@ export class OverlayClient {
   }
 
   /**
-   * Topic state root for a single topic. There is NO per-topic route on the
-   * overlay, so this is a client-side find over getState(). Returns null when
-   * the topic isn't tracked.
+   * Topic state root for a single topic — GET /v1/topic/:topic/root (cheaper
+   * than /state: one topic, 30s server cache). NOTE: this route does not carry
+   * the anchor; use getAnchor()/verifyRoot() for on-chain status. Falls back
+   * to a client-side find over getState() for older overlays without the
+   * route. Returns null when the topic isn't tracked.
    */
   async getTopicRoot(topic: string): Promise<TopicState | null> {
     if (!topic) return null
+    try {
+      const j = await this.getJsonOrNull<TopicState & { status?: string }>(
+        `/v1/topic/${encodeURIComponent(topic)}/root`,
+      )
+      if (j && j.stateRoot) return j
+    } catch {
+      /* fall through to /state */
+    }
     try {
       const s = await this.getState()
       return s.topics.find((t) => t.topic === topic) ?? null
