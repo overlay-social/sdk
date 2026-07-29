@@ -114,6 +114,50 @@ export interface ProfileRow {
   spent: boolean
 }
 
+/**
+ * A source-scoped alias for `PeckRow.author`, read from a FOREIGN app's own
+ * on-chain state — never a peck-native handle. Today the only source is
+ * Zanaadu: it sells on-chain "user numbers" (an on-chain collectibles
+ * registry), and rows with `app: 'zanaadu'` carry the holder's number here.
+ * See `peck-overlay-schema/ZANAADU_POSTANCHOR_FORMAT.md` §13 for the full
+ * derivation and its proof gap.
+ *
+ * `namespace` is mandatory and comes first so the value can never be shown
+ * bare and mistaken for a peck handle — render it qualified, e.g.
+ * `@14 · zanaadu`.
+ *
+ * Rules (normative):
+ *  - Comes IN ADDITION TO `author` (the key). Never replaces it.
+ *  - Omitted from the row entirely (never `null`, never `''`) when the
+ *    author has no alias at the source — absence is a valid, measured
+ *    state there, not a gap to fill with a guess.
+ *  - `membership_proof: 'none'` means the value was READ from the source's
+ *    own state (here: a registry counter, cross-checked 7/7 against
+ *    Zanaadu's own UI) but the source's stronger commitment (their sparse
+ *    Merkle tree) is NOT verified by us — the root is legible, not
+ *    reproducible. It is not a claim that the number itself is unreliable.
+ */
+export interface SourceHandle {
+  /** Namespace the alias lives in. Never omitted. */
+  namespace: 'zanaadu'
+  /** Formatted exactly as the source displays it, e.g. `"@14"`. */
+  value: string
+  /** Raw number, for callers that want to sort/link instead of parsing `value`. */
+  number: number
+  /** What kind of alias this is at the source — a purchasable slot, not a chosen name. */
+  kind: 'user_number'
+  /**
+   * All numbers this key owns at the source, ascending. Only present when
+   * there is more than one; `value`/`number` are then the lowest. Tie-break
+   * for "which number is primary" when a key owns several is NOT proven
+   * on-chain (§13.7) — lowest was chosen for stability over time, not
+   * because it is confirmed canonical.
+   */
+  numbers?: number[]
+  /** How strongly the value is proven. `'none'` = read, not Merkle-verified. */
+  membership_proof: 'none'
+}
+
 // ── Feed / post types ───────────────────────────────────────────
 // A `pecks` row as returned by /v1/feed and /v1/post/:txid. Only the fields we
 // lean on are typed strongly; the indexer rides extra MAP keys, so it's open.
@@ -143,6 +187,13 @@ export interface PeckRow {
   has_access?: boolean
   content_truncated?: boolean
   content_size?: number
+  /**
+   * Source-scoped alias for `author` on rows from a foreign app (currently
+   * only `app: 'zanaadu'`). Omitted when the author has none at the source.
+   * See `SourceHandle` for the full contract — it is additive, never a
+   * substitute for `author`.
+   */
+  source_handle?: SourceHandle
   [k: string]: unknown
 }
 
