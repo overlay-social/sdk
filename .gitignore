@@ -3,3 +3,15 @@ dist/
 *.log
 .DS_Store
 *.tgz
+
+# --- interne agent-/dev-filer: aldri i git (public repo) ---
+CLAUDE.md
+AGENTS.md
+IN_FLIGHT.md
+ORCHESTRATION.md
+RUNBOOK*.md
+CONVERGENCE*.md
+*.privat.md
+.gemini/
+.geminirules
+.claude/
