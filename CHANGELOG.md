@@ -3,6 +3,19 @@
 All notable changes to `@overlay-social/sdk`. The project follows semver;
 pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 
+## 0.3.0 — 2026-07-29
+
+### Added
+- `PeckRow.source_handle?: SourceHandle` — a source-scoped alias for
+  `author`, present on `app: 'zanaadu'` rows that own an on-chain
+  "user number" (`{ namespace: 'zanaadu', value: '@14', number: 14,
+  kind: 'user_number', membership_proof: 'none' }`, plus `numbers` when a
+  key owns more than one). Additive: comes alongside `author`, never
+  replaces it, and is omitted (not `null`) when the author has no number.
+  `membership_proof: 'none'` is explicit that the value is read from
+  Zanaadu's registry, not verified against their Merkle tree. See
+  `peck-overlay-schema/ZANAADU_POSTANCHOR_FORMAT.md` §13.
+
 ## 0.2.0 — 2026-06-12
 
 ### Added

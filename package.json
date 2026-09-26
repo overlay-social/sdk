@@ -1,6 +1,6 @@
 {
   "name": "@overlay-social/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Minimal read-only client for overlay.peck.to — identity resolution, profiles, feed and overlay state over the canonical BSV/BRC-100 social overlay.",
   "license": "Open BSV License v5",
   "author": "Thomas Høiby",
