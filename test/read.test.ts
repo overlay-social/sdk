@@ -62,6 +62,25 @@ describe('overlay read client', () => {
     expect(url.searchParams.has('type')).toBe(false)
   })
 
+  it('sends the /v1 bbox latitude first, whatever order the caller thinks in', async () => {
+    const { client, calls } = clientWith(() => jsonResponse({ status: 'ok', data: [] }))
+    // The parameter is [west, south, east, north] (longitude first, GeoJSON order).
+    // Oslo: longitude about 10.7, latitude about 59.9.
+    await client.getFeed({ bbox: [10.6, 59.8, 10.9, 60.0] })
+    const url = new URL(calls[0] ?? '')
+    // The overlay reads minLat,minLng,maxLat,maxLng.
+    expect(url.searchParams.get('bbox')).toBe('59.8,10.6,60,10.9')
+  })
+
+  it('lets `near` win over `bbox` and leaves the near wire format alone', async () => {
+    const { client, calls } = clientWith(() => jsonResponse({ status: 'ok', data: [] }))
+    await client.getFeed({ near: { lat: 59.9, lng: 10.7 }, radiusKm: 3, bbox: [1, 2, 3, 4] })
+    const url = new URL(calls[0] ?? '')
+    expect(url.searchParams.get('near')).toBe('59.9,10.7')
+    expect(url.searchParams.get('radius_km')).toBe('3')
+    expect(url.searchParams.has('bbox')).toBe(false)
+  })
+
   it('throws on an unexpected feed shape', async () => {
     const { client } = clientWith(() => jsonResponse({ nope: true }))
     await expect(client.getFeed()).rejects.toThrow(/unexpected shape/)

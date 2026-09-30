@@ -223,7 +223,13 @@ export interface FeedParams {
   near?: { lat: number; lng: number }
   /** Radius for `near` in km (overlay default applies when omitted). */
   radiusKm?: number
-  /** Geo: bounding box [west, south, east, north]. Ignored when `near` set. */
+  /**
+   * Geo: bounding box as `[west, south, east, north]` (longitude first, the
+   * GeoJSON order). It is put on the wire latitude first, which is what
+   * `/v1/feed` reads. `/v1` treats the corners as a plain min/max range, so a
+   * box across the antimeridian is not supported; use `createReadClient()` and
+   * its `bbox` for that. Ignored when `near` is set.
+   */
   bbox?: [number, number, number, number]
 }
 
@@ -581,12 +587,14 @@ export class OverlayClient {
     put('author', params.author)
     put('order', params.order ?? 'desc')
     put('before', params.before)
-    // Geo: ?near=lat,lng&radius_km= (haversine) or ?bbox=w,s,e,n. `near` wins.
+    // Geo: ?near=lat,lng&radius_km= (haversine) or ?bbox=south,west,north,east
+    // (the overlay reads latitude first). `near` wins.
     if (params.near) {
       put('near', `${params.near.lat},${params.near.lng}`)
       put('radius_km', params.radiusKm)
     } else if (params.bbox) {
-      put('bbox', params.bbox.join(','))
+      const [west, south, east, north] = params.bbox
+      put('bbox', [south, west, north, east].join(','))
     }
     const j = await this.getJson<FeedResponse>(`/v1/feed?${qs.toString()}`)
     if (!j || j.status !== 'ok' || !Array.isArray(j.data)) {

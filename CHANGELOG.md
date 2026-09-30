@@ -79,6 +79,13 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 - Build is configured in `tsup.config.ts` with one entry per subpath.
 - The `/v1` client moved to `src/read/v1.ts`; its exports are unchanged.
 
+### Fixed
+- `/v1` `getFeed({ bbox })` sent the box longitude first, but `/v1/feed` reads
+  it latitude first, so the box selected the wrong area (usually none). The
+  parameter is still `[west, south, east, north]`; it is now sent as
+  `south,west,north,east`. Callers that worked around this by passing latitude
+  first should switch to the documented order.
+
 ## 0.3.0 — 2026-07-29
 
 ### Added
