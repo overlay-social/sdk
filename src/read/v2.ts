@@ -18,9 +18,12 @@
  */
 import type {
   AppList,
+  ChannelList,
   ErrorResponse,
   FeedCursor,
   FeedPage,
+  IdentityList,
+  LensList,
   PostBatch,
   ProfileView,
   Reaction,
@@ -42,6 +45,7 @@ const DEFAULT_TIMEOUT_MS = 10_000
 /** Chunked calls run at most this many requests at once. */
 const CHUNK_CONCURRENCY = 4
 const TXID_RE = /^[0-9a-f]{64}$/
+const IDENTITY_KEY_RE = /^0[23][0-9a-fA-F]{64}$/
 
 // ── Errors ──────────────────────────────────────────────────────
 
@@ -220,6 +224,28 @@ export interface AppsQuery {
   type?: string | string[]
 }
 
+/** Query for `channels()`. */
+export interface ChannelsQuery {
+  /** The most entries in each of the two lists, 1–100. Overlay default: 50. */
+  limit?: number
+}
+
+/** Query for `identities()`. */
+export interface IdentitiesQuery {
+  /** 1–100. Overlay default: 20. */
+  limit?: number
+}
+
+/** Query for `lenses()`. */
+export interface LensesQuery {
+  /** Only lenses this identity key published (66-hex compressed public key). */
+  issuer?: string
+  /** Only lenses with this scope, exactly (for example `curated`). */
+  scope?: string
+  /** 1–100. Overlay default: 50. */
+  limit?: number
+}
+
 /** Per-call options. */
 export interface ReadRequestOptions {
   /** Aborts the request (and every chunk of a chunked call). */
@@ -331,6 +357,27 @@ export function appsSearchParams(query: AppsQuery = {}): URLSearchParams {
   return toSearchParams(manyParams('type', 'types', query.type))
 }
 
+const limitParam = (limit: number | undefined): string | undefined => (limit === undefined ? undefined : String(limit))
+
+/** The query string for `GET /v2/channels`. */
+export function channelsSearchParams(query: ChannelsQuery = {}): URLSearchParams {
+  return toSearchParams({ limit: limitParam(query.limit) })
+}
+
+/** The query string for `GET /v2/identities`. */
+export function identitiesSearchParams(query: IdentitiesQuery = {}): URLSearchParams {
+  return toSearchParams({ limit: limitParam(query.limit) })
+}
+
+/** The query string for `GET /v2/lenses`. */
+export function lensesSearchParams(query: LensesQuery = {}): URLSearchParams {
+  return toSearchParams({
+    issuer: query.issuer?.trim().toLowerCase(),
+    scope: query.scope?.trim(),
+    limit: limitParam(query.limit),
+  })
+}
+
 function toSearchParams(p: Params): URLSearchParams {
   const qs = new URLSearchParams()
   for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') qs.set(k, v)
@@ -358,6 +405,11 @@ const isReactionPage = (b: unknown): b is ReactionPage =>
 const isAppList = (b: unknown): b is AppList => isObject(b) && Array.isArray(b.apps)
 const isSiteStats = (b: unknown): b is SiteStats =>
   isObject(b) && typeof b.posts === 'number' && typeof b.accounts === 'number'
+const isChannelList = (b: unknown): b is ChannelList =>
+  isObject(b) && Array.isArray(b.posting) && Array.isArray(b.rooms)
+const isIdentityList = (b: unknown): b is IdentityList =>
+  isObject(b) && Array.isArray(b.items) && typeof b.total === 'number'
+const isLensList = (b: unknown): b is LensList => isObject(b) && Array.isArray(b.items)
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -533,6 +585,42 @@ export class ReadClient {
    */
   stats(opts?: ReadRequestOptions): Promise<SiteStats> {
     return this.request('GET', '/v2/stats', undefined, isSiteStats, opts)
+  }
+
+  /**
+   * `GET /v2/channels`: the channels people write in, for a channel picker or
+   * a sidebar. `posting` ranks channels by posts written in them since
+   * `postingSince` (currently 30 days); `rooms` ranks chat rooms by their
+   * latest message. Direct messages are never counted. Pass a name to
+   * `feed({ channel })`.
+   */
+  channels(query: ChannelsQuery = {}, opts?: ReadRequestOptions): Promise<ChannelList> {
+    const qs = channelsSearchParams(query).toString()
+    return this.request('GET', `/v2/channels${qs ? `?${qs}` : ''}`, undefined, isChannelList, opts)
+  }
+
+  /**
+   * `GET /v2/identities`: who is on peck, newest first, each baked like a
+   * post author (`AuthorView`). `total` counts every listed identity, not
+   * this page.
+   */
+  identities(query: IdentitiesQuery = {}, opts?: ReadRequestOptions): Promise<IdentityList> {
+    const qs = identitiesSearchParams(query).toString()
+    return this.request('GET', `/v2/identities${qs ? `?${qs}` : ''}`, undefined, isIdentityList, opts)
+  }
+
+  /**
+   * `GET /v2/lenses`: the published moderation lenses, newest first, for a
+   * lens picker. Apply one with `feed({ lens: [lens.lensId] })`. A malformed
+   * `issuer` is rejected here without a request.
+   */
+  lenses(query: LensesQuery = {}, opts?: ReadRequestOptions): Promise<LensList> {
+    const issuer = query.issuer?.trim()
+    if (issuer !== undefined && issuer !== '' && !IDENTITY_KEY_RE.test(issuer)) {
+      return Promise.reject(new ReadError('bad_request', 0, '/v2/lenses', 'issuer must be a 66-hex compressed public key'))
+    }
+    const qs = lensesSearchParams(query).toString()
+    return this.request('GET', `/v2/lenses${qs ? `?${qs}` : ''}`, undefined, isLensList, opts)
   }
 
   // -- transport ---------------------------------------------------

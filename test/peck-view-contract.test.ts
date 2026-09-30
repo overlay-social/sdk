@@ -8,7 +8,10 @@ import {
   ReadError,
   createReadClient,
   type AppList,
+  type ChannelList,
   type FeedPage,
+  type IdentityList,
+  type LensList,
   type PostBatch,
   type ProfileView,
   type ReactionPage,
@@ -20,9 +23,12 @@ import { PECK_VIEW_FIXTURES, peckViewErrors, type PeckViewTypeName } from './hel
 
 const EXAMPLE_TYPES: Record<string, PeckViewTypeName> = {
   'app-list.json': 'AppList',
+  'channel-list.json': 'ChannelList',
   'error-response.json': 'ErrorResponse',
   'feed-page-last.json': 'FeedPage',
   'feed-page.json': 'FeedPage',
+  'identity-list.json': 'IdentityList',
+  'lens-list.json': 'LensList',
   'post-batch-geo.json': 'PostBatch',
   'post-batch.json': 'PostBatch',
   'profile-view.json': 'ProfileView',
@@ -167,6 +173,37 @@ describe('the /v2 client returns each example typed', () => {
     expect(list).toEqual(example)
     expect(list.apps.map((a) => a.app)).toEqual(['twetch', 'peck.to', 'treechat', 'peck.agents'])
     expect(calls[0]?.url).toBe('https://overlay.example/v2/apps')
+  })
+
+  it('channels() -> ChannelList', async () => {
+    const example = load('channel-list.json') as ChannelList
+    const { client, calls } = serving(example)
+    const list = await client.channels()
+    expect(list).toEqual(example)
+    expect(list.posting.map((c) => c.channel)).toEqual(['peck-dev', 'scripture', 'geohash'])
+    expect(list.rooms.map((r) => r.lastAt === null)).toEqual([false, false, true])
+    expect(calls[0]?.url).toBe('https://overlay.example/v2/channels')
+  })
+
+  it('identities() -> IdentityList, including an identity named by its key', async () => {
+    const example = load('identity-list.json') as IdentityList
+    const { client, calls } = serving(example)
+    const list = await client.identities({ limit: 2 })
+    expect(list).toEqual(example)
+    expect(list.items.map((a) => a.nameSource)).toEqual(['identity', 'key'])
+    expect(list.total).toBeGreaterThan(list.items.length)
+    expect(calls[0]?.url).toBe('https://overlay.example/v2/identities?limit=2')
+  })
+
+  it('lenses() -> LensList, the issuer baked like an author', async () => {
+    const example = load('lens-list.json') as LensList
+    const { client, calls } = serving(example)
+    const issuer = example.items[0]!.issuer.key
+    const list = await client.lenses({ issuer: issuer.toUpperCase(), scope: 'curated' })
+    expect(list).toEqual(example)
+    expect(list.items[0]?.issuer.displayName).toBe('Ada')
+    expect(list.items[0]?.rules.map((r) => [r.match, r.action])).toEqual([['category', 'hide'], ['app', 'label']])
+    expect(calls[0]?.url).toBe(`https://overlay.example/v2/lenses?issuer=${issuer}&scope=curated`)
   })
 
   it('ErrorResponse -> ReadError with the contract code', async () => {

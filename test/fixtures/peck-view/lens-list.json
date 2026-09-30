@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "lensId": "96e3127f2891a407b0bd6ce4ff074fc3c6a1d5c25bb040600ac10d3f47f2ea63",
+      "issuer": {
+        "key": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "address": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "identityKey": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "handle": "ada",
+        "displayName": "Ada",
+        "nameSource": "identity",
+        "avatarUrl": "https://peck.bio/uhrp/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarRef": "uhrp://a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarSource": "identity",
+        "generatedAvatarUrl": "https://peck.to/avatar/02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1?seed=1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "scope": "curated",
+      "rules": [
+        {
+          "match": "category",
+          "value": "spam",
+          "action": "hide"
+        },
+        {
+          "match": "app",
+          "value": "twetch",
+          "action": "label",
+          "label": "Imported from twetch"
+        }
+      ],
+      "jurisdiction": null,
+      "serial": "1782136175918",
+      "outpoint": "96e3127f2891a407b0bd6ce4ff074fc3c6a1d5c25bb040600ac10d3f47f2ea63.0"
+    }
+  ]
+}

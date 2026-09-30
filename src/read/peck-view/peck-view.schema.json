@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://overlay.peck.to/contracts/peck-view/v1/peck-view.schema.json",
-  "$comment": "Vendored copy of the peck-view/v1 contract (source sha256 c0b333deb3b36da1adfa0580ea51ae53ccfa8d91436c856ecfb5c1b7896cb83a). Written by scripts/sync-peck-view.mjs; do not edit by hand.",
+  "$comment": "Vendored copy of the peck-view/v1 contract (source sha256 239622895fb0d33b1fad9200d417f2c9a30f6f05c5db73b92a4aeb47b41bff31). Written by scripts/sync-peck-view.mjs; do not edit by hand.",
   "title": "PeckView",
   "description": "peck-view/v1: the hydrated read model served by the overlay under /v2. The overlay (producer) owns this contract; clients and the SDK consume it. Every view is viewer-independent: nothing in a PostView, ThreadView, ProfileView or FeedPage depends on who asks, so responses can be cached by URL. Per-viewer facts (liked by me, following, blocked) live only in ViewerState. Evolution rules: within v1 the overlay may ADD optional properties and ADD enum values documented as open; it never removes, renames or retypes a property. Consumers must ignore properties they do not know. A breaking change is a new contract version (peck-view/v2) served side by side. The producer validates its own responses strictly (additionalProperties: false), so a leaked database column fails the overlay's own contract tests. TypeScript types are generated from this schema.",
   "anyOf": [
@@ -28,6 +28,15 @@
     },
     {
       "$ref": "#/$defs/SiteStats"
+    },
+    {
+      "$ref": "#/$defs/ChannelList"
+    },
+    {
+      "$ref": "#/$defs/IdentityList"
+    },
+    {
+      "$ref": "#/$defs/LensList"
     },
     {
       "$ref": "#/$defs/ErrorResponse"
@@ -1302,6 +1311,239 @@
           "type": "string",
           "format": "date-time",
           "description": "When the estimates were read, ISO 8601 in UTC with a trailing Z."
+        }
+      }
+    },
+    "ChannelName": {
+      "title": "ChannelName",
+      "description": "The name of a channel. Channels are an open namespace: nobody owns a name, and a channel exists as soon as a post or message names it. Case-sensitive and matched exactly (GET /v2/feed?channel= takes the same value). Letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 64 characters, so a name is safe in a URL path segment. Names that do not fit are never listed.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "PostingChannel": {
+      "title": "PostingChannel",
+      "description": "A channel that posts were written in recently, and how many.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "posts"
+      ],
+      "properties": {
+        "channel": {
+          "$ref": "#/$defs/ChannelName"
+        },
+        "posts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Posts, replies and reposts written in this channel since ChannelList.postingSince: the posts GET /v2/feed?channel= serves with types=post,reply,repost. Authors and apps the overlay operator hides from every feed are not counted. As of ChannelList.asOf."
+        }
+      }
+    },
+    "ChatRoom": {
+      "title": "ChatRoom",
+      "description": "A chat room: a channel that messages were sent to.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "messages",
+        "lastAt"
+      ],
+      "properties": {
+        "channel": {
+          "$ref": "#/$defs/ChannelName"
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Messages sent to the room, all time. Private (direct) messages are never counted or listed. As of ChannelList.asOf."
+        },
+        "lastAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "When the latest message was sent, ISO 8601 in UTC with a trailing Z. Null only when every message of the room was indexed without a time."
+        }
+      }
+    },
+    "ChannelList": {
+      "title": "ChannelList",
+      "description": "The channels people write in (GET /v2/channels), for a channel picker or a sidebar. Two lists, because the two kinds of activity differ: `posting` ranks channels by the posts written in them recently, `rooms` ranks chat rooms by their latest message. A name can be in both. Nothing here depends on the viewer, and counts are as old as `asOf`. The legacy room `global` is the global chat itself, not a room, and is never listed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posting",
+        "rooms",
+        "postingSince",
+        "asOf"
+      ],
+      "properties": {
+        "posting": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PostingChannel"
+          },
+          "description": "Most posts first, ties by name. Empty when nothing was posted to a channel in the window."
+        },
+        "rooms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChatRoom"
+          },
+          "description": "Latest message first, ties by name."
+        },
+        "postingSince": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The start of the window `posting` counts over, ISO 8601 in UTC with a trailing Z. Currently the 30 days before `asOf`: read this field rather than assuming the length."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When these lists were read, ISO 8601 in UTC with a trailing Z."
+        }
+      }
+    },
+    "IdentityList": {
+      "title": "IdentityList",
+      "description": "The identities on the overlay, newest first (GET /v2/identities): who is on peck. An identity is a BRC-100 identity key that has published a profile. A key that is bound to another identity as one of its signing keys is folded into that identity and not listed on its own. Every item is baked exactly like a post author, so the name, handle and picture match that person's posts. An identity that published no name and holds no handle carries the shortened key as displayName (nameSource key): render it as a wallet identity.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "total"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AuthorView"
+          },
+          "description": "At most `limit` identities. Identities with an on-chain light profile come first, the latest attested first; then those known only from a ProfileToken, the latest minted first."
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many identities the overlay lists in all, not the size of this page."
+        }
+      }
+    },
+    "LensRule": {
+      "title": "LensRule",
+      "description": "One rule of a moderation lens.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "match",
+        "value",
+        "action"
+      ],
+      "properties": {
+        "match": {
+          "type": "string",
+          "enum": [
+            "author",
+            "txid",
+            "tag",
+            "app",
+            "geo",
+            "category"
+          ],
+          "description": "What the rule looks at. author: `value` is a P2PKH address. txid: a post. app: an app name. category: a classification label such as spam. tag and geo are recorded but not applied by GET /v2/feed yet. Open set: ignore a rule whose match you do not know."
+        },
+        "value": {
+          "type": "string",
+          "description": "What to match, in the form `match` names."
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "hide",
+            "downrank",
+            "label"
+          ],
+          "description": "hide is the only action GET /v2/feed applies today; downrank and label are recorded for later. Open set: ignore a rule whose action you do not know."
+        },
+        "label": {
+          "type": "string",
+          "description": "The text a `label` rule shows. Optional, and only on rules that carry one."
+        }
+      }
+    },
+    "Lens": {
+      "title": "Lens",
+      "description": "A published, subscribable moderation lens: a rule set its issuer signed and a reader can apply to their own feeds. Filtering, never deletion: the posts stay on chain and in the index, and a reader who does not subscribe still sees them. Subscribe by passing `lensId` as `lens` to GET /v2/feed. Only the current version of a lens is listed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lensId",
+        "issuer",
+        "scope",
+        "rules",
+        "jurisdiction",
+        "serial",
+        "outpoint"
+      ],
+      "properties": {
+        "lensId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The lens's stable id, the value GET /v2/feed?lens= takes. It stays the same across new versions of the lens."
+        },
+        "issuer": {
+          "$ref": "#/$defs/AuthorView",
+          "description": "Who published the lens, baked like a post author. `issuer.key` is the identity key that signed it."
+        },
+        "scope": {
+          "type": "string",
+          "description": "What the issuer says the lens is for (curated, for example). Free text chosen by the issuer."
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LensRule"
+          },
+          "description": "The lens's rules, in the order the issuer published them. Rules whose shape this overlay does not understand are left out, so the list can be empty."
+        },
+        "jurisdiction": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The legal jurisdiction the issuer attached to the lens, if any."
+        },
+        "serial": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The issuer's serial for this version, as published. Opaque: compare it for equality, do not order by it. Null when the lens carries none."
+        },
+        "outpoint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}\\.[0-9]+$",
+          "description": "The on-chain output that holds this version of the lens: <txid>.<vout>."
+        }
+      }
+    },
+    "LensList": {
+      "title": "LensList",
+      "description": "The published moderation lenses (GET /v2/lenses), newest first, for a lens picker. Nothing here depends on the viewer. A lens changes only when its issuer publishes a new version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Lens"
+          },
+          "description": "At most `limit` lenses, newest first."
         }
       }
     },

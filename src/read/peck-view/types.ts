@@ -5,7 +5,7 @@
  * (src/read/peck-view/peck-view.schema.json). Do not edit by hand: re-run
  * `npm run sync:peck-view -- <path to the contract schema>`.
  *
- * Contract source sha256: c0b333deb3b36da1adfa0580ea51ae53ccfa8d91436c856ecfb5c1b7896cb83a
+ * Contract source sha256: 239622895fb0d33b1fad9200d417f2c9a30f6f05c5db73b92a4aeb47b41bff31
  */
 
 /**
@@ -20,6 +20,9 @@ export type PeckView =
   | AppList
   | ReactionPage
   | SiteStats
+  | ChannelList
+  | IdentityList
+  | LensList
   | ErrorResponse
 /**
  * A BRC-100 identity key: a 66-hex compressed secp256k1 public key, lowercase.
@@ -33,6 +36,10 @@ export type Txid = string
  * A signing key as the chain carries it: either a base58 P2PKH address (1…) or a 66-hex compressed secp256k1 public key (02…/03…).
  */
 export type Key = string
+/**
+ * The name of a channel. Channels are an open namespace: nobody owns a name, and a channel exists as soon as a post or message names it. Case-sensitive and matched exactly (GET /v2/feed?channel= takes the same value). Letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 64 characters, so a name is safe in a URL path segment. Names that do not fit are never listed.
+ */
+export type ChannelName = string
 
 /**
  * One page of a feed (GET /v2/feed, and later search and profile feeds). There is no total count by design.
@@ -667,6 +674,124 @@ export interface SiteStats {
    * When the estimates were read, ISO 8601 in UTC with a trailing Z.
    */
   asOf: string
+}
+/**
+ * The channels people write in (GET /v2/channels), for a channel picker or a sidebar. Two lists, because the two kinds of activity differ: `posting` ranks channels by the posts written in them recently, `rooms` ranks chat rooms by their latest message. A name can be in both. Nothing here depends on the viewer, and counts are as old as `asOf`. The legacy room `global` is the global chat itself, not a room, and is never listed.
+ */
+export interface ChannelList {
+  /**
+   * Most posts first, ties by name. Empty when nothing was posted to a channel in the window.
+   */
+  posting: PostingChannel[]
+  /**
+   * Latest message first, ties by name.
+   */
+  rooms: ChatRoom[]
+  /**
+   * The start of the window `posting` counts over, ISO 8601 in UTC with a trailing Z. Currently the 30 days before `asOf`: read this field rather than assuming the length.
+   */
+  postingSince: string
+  /**
+   * When these lists were read, ISO 8601 in UTC with a trailing Z.
+   */
+  asOf: string
+}
+/**
+ * A channel that posts were written in recently, and how many.
+ */
+export interface PostingChannel {
+  channel: ChannelName
+  /**
+   * Posts, replies and reposts written in this channel since ChannelList.postingSince: the posts GET /v2/feed?channel= serves with types=post,reply,repost. Authors and apps the overlay operator hides from every feed are not counted. As of ChannelList.asOf.
+   */
+  posts: number
+}
+/**
+ * A chat room: a channel that messages were sent to.
+ */
+export interface ChatRoom {
+  channel: ChannelName
+  /**
+   * Messages sent to the room, all time. Private (direct) messages are never counted or listed. As of ChannelList.asOf.
+   */
+  messages: number
+  /**
+   * When the latest message was sent, ISO 8601 in UTC with a trailing Z. Null only when every message of the room was indexed without a time.
+   */
+  lastAt: string | null
+}
+/**
+ * The identities on the overlay, newest first (GET /v2/identities): who is on peck. An identity is a BRC-100 identity key that has published a profile. A key that is bound to another identity as one of its signing keys is folded into that identity and not listed on its own. Every item is baked exactly like a post author, so the name, handle and picture match that person's posts. An identity that published no name and holds no handle carries the shortened key as displayName (nameSource key): render it as a wallet identity.
+ */
+export interface IdentityList {
+  /**
+   * At most `limit` identities. Identities with an on-chain light profile come first, the latest attested first; then those known only from a ProfileToken, the latest minted first.
+   */
+  items: AuthorView[]
+  /**
+   * How many identities the overlay lists in all, not the size of this page.
+   */
+  total: number
+}
+/**
+ * The published moderation lenses (GET /v2/lenses), newest first, for a lens picker. Nothing here depends on the viewer. A lens changes only when its issuer publishes a new version.
+ */
+export interface LensList {
+  /**
+   * At most `limit` lenses, newest first.
+   */
+  items: Lens[]
+}
+/**
+ * A published, subscribable moderation lens: a rule set its issuer signed and a reader can apply to their own feeds. Filtering, never deletion: the posts stay on chain and in the index, and a reader who does not subscribe still sees them. Subscribe by passing `lensId` as `lens` to GET /v2/feed. Only the current version of a lens is listed.
+ */
+export interface Lens {
+  /**
+   * The lens's stable id, the value GET /v2/feed?lens= takes. It stays the same across new versions of the lens.
+   */
+  lensId: string
+  issuer: AuthorView
+  /**
+   * What the issuer says the lens is for (curated, for example). Free text chosen by the issuer.
+   */
+  scope: string
+  /**
+   * The lens's rules, in the order the issuer published them. Rules whose shape this overlay does not understand are left out, so the list can be empty.
+   */
+  rules: LensRule[]
+  /**
+   * The legal jurisdiction the issuer attached to the lens, if any.
+   */
+  jurisdiction: string | null
+  /**
+   * The issuer's serial for this version, as published. Opaque: compare it for equality, do not order by it. Null when the lens carries none.
+   */
+  serial: string | null
+  /**
+   * The on-chain output that holds this version of the lens: <txid>.<vout>.
+   */
+  outpoint: string
+}
+/**
+ * One rule of a moderation lens.
+ */
+export interface LensRule {
+  /**
+   * What the rule looks at. author: `value` is a P2PKH address. txid: a post. app: an app name. category: a classification label such as spam. tag and geo are recorded but not applied by GET /v2/feed yet. Open set: ignore a rule whose match you do not know.
+   */
+  match: 'author' | 'txid' | 'tag' | 'app' | 'geo' | 'category'
+  /**
+   * What to match, in the form `match` names.
+   */
+  value: string
+  /**
+   * hide is the only action GET /v2/feed applies today; downrank and label are recorded for later. Open set: ignore a rule whose action you do not know.
+   */
+  action: 'hide' | 'downrank' | 'label'
+  /**
+   * The text a `label` rule shows. Optional, and only on rules that carry one.
+   */
+  label?: string
 }
 /**
  * Body of every non-2xx /v2 response.

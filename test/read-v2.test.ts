@@ -7,6 +7,9 @@ import {
   feedSearchParams,
   isReadError,
   appsSearchParams,
+  channelsSearchParams,
+  identitiesSearchParams,
+  lensesSearchParams,
   reactionsSearchParams,
   type FeedPage,
   type PostView,
@@ -238,6 +241,63 @@ describe('stats() and apps()', () => {
   it('apps() rejects a body that is not an AppList', async () => {
     const { client } = clientWith(() => json({ items: [], next: null }))
     await expect(client.apps()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+})
+
+describe('channels(), identities() and lenses()', () => {
+  const CHANNELS = { posting: [], rooms: [], postingSince: '2026-08-31T15:00:00Z', asOf: '2026-09-30T15:00:00Z' }
+  const IDENTITIES = { items: [], total: 0 }
+  const LENSES = { items: [] }
+  const ISSUER = `02${'ab'.repeat(32)}`
+
+  it('channels() reads /v2/channels and sends limit only when given', async () => {
+    const { client, calls } = clientWith(() => json(CHANNELS))
+    expect(await client.channels()).toEqual(CHANNELS)
+    await client.channels({ limit: 10 })
+    expect(calls.map((c) => c.url.pathname + c.url.search)).toEqual(['/v2/channels', '/v2/channels?limit=10'])
+    expect(calls[0]!.method).toBe('GET')
+    expect(channelsSearchParams({}).toString()).toBe('')
+  })
+
+  it('identities() reads /v2/identities and sends limit only when given', async () => {
+    const { client, calls } = clientWith(() => json(IDENTITIES))
+    expect(await client.identities()).toEqual(IDENTITIES)
+    await client.identities({ limit: 100 })
+    expect(calls.map((c) => c.url.pathname + c.url.search)).toEqual(['/v2/identities', '/v2/identities?limit=100'])
+    expect(identitiesSearchParams({}).toString()).toBe('')
+  })
+
+  it('lenses() maps issuer, scope and limit, and lower-cases the issuer', async () => {
+    const { client, calls } = clientWith(() => json(LENSES))
+    await client.lenses()
+    await client.lenses({ issuer: ` ${ISSUER.toUpperCase()} `, scope: ' curated ', limit: 5 })
+    expect(calls[0]!.url.search).toBe('')
+    expect(Object.fromEntries(calls[1]!.url.searchParams)).toEqual({ issuer: ISSUER, scope: 'curated', limit: '5' })
+    expect(lensesSearchParams({ issuer: '', scope: '' }).toString()).toBe('')
+  })
+
+  it('lenses() rejects a malformed issuer without a request', async () => {
+    const { client, calls } = clientWith(() => json(LENSES))
+    await expect(client.lenses({ issuer: 'ada' })).rejects.toMatchObject({ code: 'bad_request', status: 0, path: '/v2/lenses' })
+    await expect(client.lenses({ issuer: `04${'ab'.repeat(32)}` })).rejects.toMatchObject({ code: 'bad_request' })
+    expect(calls).toHaveLength(0)
+  })
+
+  it('passes an overlay bad_request through as a ReadError', async () => {
+    const { client } = clientWith(() => json({ error: { code: 'bad_request', message: 'limit must be an integer 1–100' } }, 400))
+    await expect(client.channels({ limit: 500 })).rejects.toMatchObject({ code: 'bad_request', status: 400, path: '/v2/channels?limit=500' })
+  })
+
+  it('rejects bodies of the wrong view', async () => {
+    const { client } = clientWith(() => json({ apps: [], asOf: '2026-09-30T10:05:00Z' }))
+    await expect(client.channels()).rejects.toMatchObject({ code: 'invalid_response' })
+    await expect(client.identities()).rejects.toMatchObject({ code: 'invalid_response' })
+    await expect(client.lenses()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+
+  it('identities() needs the total', async () => {
+    const { client } = clientWith(() => json({ items: [] }))
+    await expect(client.identities()).rejects.toMatchObject({ code: 'invalid_response' })
   })
 })
 

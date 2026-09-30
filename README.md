@@ -55,6 +55,9 @@ per-viewer read is `viewerState()`.
 | `reactions(txid, { kind?, limit?, cursor? })` | `GET /v2/post/:txid/reactions` | `ReactionPage`: who liked (or, with `kind: 'repost'`, reposted) a post, newest first |
 | `apps({ type? })` | `GET /v2/apps` | `AppList`: posts per app, most first |
 | `stats()` | `GET /v2/stats` | `SiteStats`: site totals (`posts`, `accounts`), row estimates |
+| `channels({ limit? })` | `GET /v2/channels` | `ChannelList`: channels by recent posts (`posting`) and chat rooms by latest message (`rooms`) |
+| `identities({ limit? })` | `GET /v2/identities` | `IdentityList`: who is on peck, newest first, each an `AuthorView`, plus the `total` |
+| `lenses({ issuer?, scope?, limit? })` | `GET /v2/lenses` | `LensList`: published moderation lenses, newest first, the issuer an `AuthorView` |
 
 **Paging.** `next` is a structured cursor. Pass it back unchanged as
 `cursor`, with the same filters, to get the following page; its keys depend on
@@ -87,6 +90,17 @@ while (page.next) {
   page = await overlay.reactions(txid, { limit: 50, cursor: page.next })
   likers.push(...page.items)
 }
+```
+
+**Sidebars and pickers.** `channels()`, `identities()` and `lenses()` are
+viewer-independent and cacheable. A channel name goes
+back into `feed({ channel })`, a lens id into `feed({ lens: [lensId] })`:
+
+```ts
+const { posting, rooms } = await overlay.channels({ limit: 10 })
+const { items: people, total } = await overlay.identities({ limit: 5 })
+const { items: lenses } = await overlay.lenses()
+await overlay.feed({ channel: posting[0]?.channel, lens: lenses.map((l) => l.lensId) })
 ```
 
 **Errors.** Every failure throws a `ReadError` with a stable `code` and the

@@ -62,6 +62,22 @@ describe.skipIf(!live)('live /v2 smoke test', () => {
     expect(apps.apps.length).toBeGreaterThan(0)
   }, 30_000)
 
+  it('channels, identities and lenses', async () => {
+    const channels = await client.channels({ limit: 10 })
+    expect(peckViewErrors('ChannelList', channels)).toEqual([])
+    expect(channels.posting.length + channels.rooms.length).toBeGreaterThan(0)
+    const identities = await client.identities({ limit: 5 })
+    expect(peckViewErrors('IdentityList', identities)).toEqual([])
+    expect(identities.items.length).toBeGreaterThan(0)
+    const lenses = await client.lenses()
+    expect(peckViewErrors('LensList', lenses)).toEqual([])
+    const issuer = lenses.items[0]?.issuer.key
+    if (issuer) {
+      const mine = await client.lenses({ issuer })
+      expect(mine.items.every((l) => l.issuer.key === issuer)).toBe(true)
+    }
+  }, 30_000)
+
   it('reactions of a post, paged', async () => {
     const page = await client.feed({ limit: 50, rank: 'top' })
     const liked = page.items.find((p) => p.counts.likes > 0)
