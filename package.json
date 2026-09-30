@@ -1,7 +1,7 @@
 {
   "name": "@overlay-social/sdk",
   "version": "0.3.0",
-  "description": "TypeScript SDK for overlay.peck.to, the BSV / BRC-100 social overlay: typed read clients, Bitcoin Schema (B / MAP / AIP) builders and the Peck OS bridge client.",
+  "description": "TypeScript SDK for overlay.peck.to, the BSV / BRC-100 social overlay: typed read clients, Bitcoin Schema (B / MAP / AIP) builders, wallet connection and the Peck OS bridge client.",
   "license": "Open BSV License v5",
   "author": "Thomas Høiby",
   "homepage": "https://overlay.social",
@@ -28,6 +28,10 @@
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
+    },
+    "./wallet": {
+      "types": "./dist/wallet.d.ts",
+      "import": "./dist/wallet.js"
     },
     "./peckos": {
       "types": "./dist/peckos.d.ts",

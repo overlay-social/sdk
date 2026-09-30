@@ -8,6 +8,7 @@ export default defineConfig({
     index: 'src/index.ts',
     read: 'src/read/index.ts',
     schema: 'src/schema/index.ts',
+    wallet: 'src/wallet/index.ts',
     peckos: 'src/peckos/index.ts',
   },
   format: ['esm'],

@@ -206,7 +206,7 @@ separate ESM entry point with its own type declarations).
 | --- | --- | --- |
 | `@overlay-social/sdk/read` | Typed read clients for the overlay: `/v2` read model (recommended) and the `/v1` facade (same surface as the package root) | available |
 | `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs, signed through a BRC-100 wallet | available |
-| `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | planned |
+| `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | available |
 | `@overlay-social/sdk/identity` | Render-ready helpers for identity fields such as avatar references and display names | planned |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for user-generated content | planned |
 | `@overlay-social/sdk/dm` | BRC-42 direct-message envelopes and a message-box client | planned |
@@ -264,6 +264,54 @@ MAP sections, each separator as the byte `0x7c`, then the AIP prefix, `BRC77`
 and the key. Length prefixes and the signature push are not included. The
 digest is one SHA-256, and the script carries the DER signature in base64.
 `verifyAip(script)` checks it. Details are in `src/schema/aip.ts`.
+
+## Wallet (`/wallet`)
+
+`connect()` finds the user's BRC-100 wallet and returns one `WalletInterface`,
+whichever way the page reaches it:
+
+| `via` | Door | Detected by |
+| --- | --- | --- |
+| `peckos` | The page runs in a Peck OS window | `PeckOS.detect()` (a `hello` to the parent frame) |
+| `cwi` | A wallet injected into the page (`window.CWI`) | a property check |
+| `local` | A desktop wallet serving BRC-100 over HTTP (default `http://localhost:3321`) | `getVersion` with a 1.5 s timeout |
+| `passkey` | An opener the app supplies (`options.passkey`) | used when nothing else answered |
+
+```ts
+import { connect, WalletRequestError } from '@overlay-social/sdk/wallet'
+
+const wallet = await connect({ originator: 'example.com' })
+console.log(wallet.via) // 'peckos' | 'cwi' | 'local' | 'passkey'
+
+try {
+  await wallet.createAction({ description: 'Post', outputs })
+} catch (e) {
+  if (e instanceof WalletRequestError && e.reason === 'insufficient_funds') showTopUp()
+  else if (e instanceof WalletRequestError && e.reason === 'cancelled') return
+  else throw e
+}
+```
+
+Detection is prompt-free: nothing asks the wallet for keys or permission until
+the app makes its first request. The passkey opener is also called on the first
+request, not by `connect()`, so make that request from a click. Some browsers
+ask before a page talks to a local-network address; call `connect()` from a
+user gesture, or pass `local: false` to skip that door.
+
+**One error shape.** Every error a wallet method throws becomes a
+`WalletRequestError` with a `reason`:
+
+- `cancelled`: the user declined or closed a prompt.
+- `unavailable`: no wallet is installed, reachable, unlocked or signed in.
+- `insufficient_funds`
+- `timeout`
+- `unknown`
+
+The wallet's message and numeric BRC-100 `code` are kept, the original error is
+the `cause`, and a local wallet's HTTP `status` and error fields are attached.
+`classifyWalletError()` and `normalizeWalletError()` work on any value. They
+read error codes and message text in English and Norwegian, never call
+arguments.
 
 ## Peck OS bridge (`/peckos`)
 

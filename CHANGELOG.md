@@ -34,7 +34,15 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   (`signPayload`, BRC77 over the full preimage) with `verifyAip`. The layouts
   reproduce mainnet transactions written by the peck.to web client byte for
   byte (golden-vector tests).
-- Dependency: `@bsv/sdk` `^2.8.7`, used by the `schema` module only.
+- Dependency: `@bsv/sdk` `^2.8.7`. The `schema` module uses it at runtime;
+  `wallet` imports only its types.
+- `@overlay-social/sdk/wallet`: `connect()` reaches the user's BRC-100 wallet
+  through Peck OS, an injected `window.CWI`, a local HTTP wallet
+  (`localhost:3321`) or an app-supplied passkey opener, in that order, without
+  prompting during detection. It returns a `WalletInterface` with `via`. One
+  error normalizer (`WalletRequestError`, `classifyWalletError`,
+  `normalizeWalletError`) maps every failure to `cancelled`, `unavailable`,
+  `insufficient_funds`, `timeout` or `unknown`.
 - Contract tests: every contract example validates against the schema and
   round-trips through the client; a live smoke test runs when
   `PECK_VIEW_LIVE` is set.
