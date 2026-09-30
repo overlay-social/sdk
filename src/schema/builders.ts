@@ -18,6 +18,7 @@
  *  - No push is ever empty: readers skip OP_0 and misread every field after it.
  */
 import { PIPE, PROTO_B, PROTO_MAP, SchemaError, payload, type Push, type SchemaPayload } from './bitcom.js'
+import { geoFields, type GeoInput } from './geo.js'
 
 const TXID_RE = /^[0-9a-fA-F]{64}$/
 
@@ -37,11 +38,6 @@ export interface MediaInput {
   filename: string
 }
 
-export interface GeoInput {
-  lat: number
-  lng: number
-}
-
 /** Shared by post, reply and quote. */
 export interface ContentInput extends BaseInput {
   /**
@@ -53,7 +49,10 @@ export interface ContentInput extends BaseInput {
   media?: MediaInput
   /** Tags, written as a MAP `ADD tags` section. Duplicates and empty tags are dropped. */
   tags?: readonly string[]
-  /** Location, written as MAP `lat` and `lng`. */
+  /**
+   * Location, written as MAP `lat` and `lng` (and `alt`, `geohash` when given).
+   * Any post, reply or quote can carry one: a pin is a post with a location.
+   */
   geo?: GeoInput
   /**
    * Mentioned authors' posting addresses (or keys), written as one MAP
@@ -73,6 +72,25 @@ export interface ReplyInput extends ContentInput {
 
 export interface QuoteInput extends ContentInput {
   targetTxid: string
+}
+
+/** Categories peck.world colours and filters its pins by. Any other value is written as given. */
+export const PIN_CATEGORIES = ['general', 'business', 'event', 'alert', 'idea', 'photo'] as const
+export type PinCategory = (typeof PIN_CATEGORIES)[number]
+
+export interface PinInput extends BaseInput {
+  /** Where the pin is. Required: a pin is a post with a location. */
+  geo: GeoInput
+  /** One line. Written as the B heading and as MAP `title`. */
+  title: string
+  /** Longer text under the title (markdown), written in the B section. */
+  description?: string
+  /** One of {@link PIN_CATEGORIES} (default "general"); other values are written as given. */
+  category?: PinCategory | (string & {})
+  /** Tags, as for `post`. */
+  tags?: readonly string[]
+  /** Mentioned authors' posting addresses (or keys), as for `post`. */
+  mentions?: readonly string[]
 }
 
 export interface TargetInput extends BaseInput {
@@ -130,6 +148,10 @@ function txid(name: string, v: unknown): string {
   return t.toLowerCase()
 }
 
+function trimmed(v: unknown): string | undefined {
+  return typeof v === 'string' ? v.trim() : undefined
+}
+
 function noSeparator(name: string, v: string): string {
   if (v === PIPE) throw new SchemaError(`${name} cannot be "|"`)
   return v
@@ -152,14 +174,6 @@ function tagsSection(tags: readonly string[] | undefined): Push[] {
   if (unique.length === 0) return []
   for (const t of unique) noSeparator('tag', t)
   return [PIPE, PROTO_MAP, 'ADD', 'tags', ...unique]
-}
-
-function geoFields(geo: GeoInput | undefined): Push[] {
-  if (!geo) return []
-  const { lat, lng } = geo
-  if (!Number.isFinite(lat) || Math.abs(lat) > 90) throw new SchemaError('geo.lat must be a number within ±90')
-  if (!Number.isFinite(lng) || Math.abs(lng) > 180) throw new SchemaError('geo.lng must be a number within ±180')
-  return ['lat', String(lat), 'lng', String(lng)]
 }
 
 function mentionFields(mentions: readonly string[] | undefined): Push[] {
@@ -202,6 +216,34 @@ export function post(input: PostInput): SchemaPayload {
     ...contentHead(input, 'post'),
     ...(channel ? ['context', 'channel', 'channel', channel] : []),
     ...geoFields(input.geo),
+    ...mentionFields(input.mentions),
+    ...tagsSection(input.tags),
+  ])
+}
+
+/**
+ * A pin: a post with a location, laid out the way peck.world writes one. The B
+ * section is the markdown `# <title>` (plus a blank line and the description
+ * when there is one) named `pin.md`; MAP is `SET app <app> type post`, the
+ * location, `category` and `title`. There is no MAP `content` (the B section
+ * carries the text), and the type stays `post`: readers find pins by their
+ * coordinates, not by a type of their own.
+ *
+ * For a post that only carries a location, use `post({ geo })`.
+ */
+export function pin(input: PinInput): SchemaPayload {
+  const app = required('app', input.app)
+  const title = required('title', trimmed(input.title))
+  if (/[\r\n]/.test(title)) throw new SchemaError('title must be a single line')
+  const description = optional('description', trimmed(input.description))
+  const category = optional('category', trimmed(input.category)) ?? 'general'
+  if (!input.geo) throw new SchemaError('geo is required')
+  return payload([
+    ...bSection(description ? `# ${title}\n\n${description}` : `# ${title}`, TEXT_MEDIA_TYPE, TEXT_ENCODING, 'pin.md'),
+    PROTO_MAP, 'SET', 'app', app, 'type', 'post',
+    ...geoFields(input.geo),
+    'category', category,
+    'title', title,
     ...mentionFields(input.mentions),
     ...tagsSection(input.tags),
   ])

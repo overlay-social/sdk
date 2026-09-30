@@ -33,10 +33,12 @@ export {
   type AipWallet,
 } from './aip.js'
 export {
+  PIN_CATEGORIES,
   follow,
   hashtags,
   like,
   message,
+  pin,
   post,
   profile,
   quote,
@@ -48,9 +50,10 @@ export {
   type BaseInput,
   type ContentInput,
   type FollowInput,
-  type GeoInput,
   type MediaInput,
   type MessageInput,
+  type PinCategory,
+  type PinInput,
   type PostInput,
   type ProfileInput,
   type QuoteInput,
@@ -58,3 +61,15 @@ export {
   type TagInput,
   type TargetInput,
 } from './builders.js'
+export {
+  ALT_DECIMALS,
+  DEFAULT_GEOHASH_LENGTH,
+  DEFAULT_GEO_PRECISION,
+  MAX_GEOHASH_LENGTH,
+  MAX_GEO_PRECISION,
+  decodeGeohash,
+  encodeGeohash,
+  normalizeGeo,
+  type GeoFields,
+  type GeoInput,
+} from './geo.js'

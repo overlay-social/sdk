@@ -34,6 +34,13 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   (`signPayload`, BRC77 over the full preimage) with `verifyAip`. The layouts
   reproduce mainnet transactions written by the peck.to web client byte for
   byte (golden-vector tests).
+- `schema`: locations. `geo: { lat, lng, alt?, geohash?, precision? }` on
+  `post`, `reply` and `quote` writes MAP `lat`, `lng`, `alt` and `geohash`
+  (the keys the indexer reads) as plain decimals: no exponent, at most
+  `precision` decimals (default 6), never 0,0. `pin()` is a post with a
+  location laid out as peck.world writes it. `encodeGeohash`, `decodeGeohash`
+  and `normalizeGeo` are exported. Golden tests replay two geotagged peck.to
+  posts and a peck.world pin from mainnet.
 - Dependency: `@bsv/sdk` `^2.8.7`. The `schema` module uses it at runtime;
   `wallet` imports only its types.
 - `@overlay-social/sdk/wallet`: `connect()` reaches the user's BRC-100 wallet
