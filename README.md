@@ -207,7 +207,7 @@ separate ESM entry point with its own type declarations).
 | `@overlay-social/sdk/read` | Typed read clients for the overlay: `/v2` read model (recommended) and the `/v1` facade (same surface as the package root) | available |
 | `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs, signed through a BRC-100 wallet | available |
 | `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | available |
-| `@overlay-social/sdk/identity` | Render-ready helpers for identity fields such as avatar references and display names | planned |
+| `@overlay-social/sdk/identity` | The rules for showing an author: display name, handle, short key and avatar URL, the same ones the overlay applies | available |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for chain content: markdown to safe HTML for browsers and server rendering | available |
 | `@overlay-social/sdk/dm` | BRC-42 direct-message envelopes and a message-box client | planned |
 | `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | available |
@@ -413,6 +413,67 @@ the `cause`, and a local wallet's HTTP `status` and error fields are attached.
 `classifyWalletError()` and `normalizeWalletError()` work on any value. They
 read error codes and message text in English and Norwegian, never call
 arguments.
+
+## Showing an author (`/identity`)
+
+The overlay resolves every author once, into an `AuthorView`, with one
+function, so all clients show the same name, handle and picture for a key. This
+module has the same rules for clients that display authors, or build them
+themselves, without asking the overlay:
+
+```ts
+import { avatarSrc, formatHandle, profileRef, shortKey } from '@overlay-social/sdk/identity'
+
+const name = author.displayName            // never empty
+const handle = formatHandle(author.handle) // '@ada', or null
+const picture = avatarSrc(author)          // the author's own picture, else the generated bird
+const link = `/u/${profileRef(author)}`    // handle, else identity key, else key
+```
+
+| Function | Rule |
+| --- | --- |
+| `bakeAuthor(sources, config?)` | The whole `AuthorView` from the records you have (below) |
+| `avatarRefToUrl(ref, origin, config?)` | `avatarRef` to an `<img src>` URL, or `null` |
+| `generatedAvatarUrl(key, address, config?)` | The generated bird, seeded on the P2PKH address |
+| `avatarSrc(author)` | `avatarUrl`, else `generatedAvatarUrl` |
+| `formatHandle(handle)` / `normalizeHandle(handle)` | `@ada` / `ada`, from a handle with or without the @ |
+| `shortKey(key)` | `1BSMAM…U4gG`: first 6 + `…` + last 4 of anything longer than 12 |
+| `keyKind(key)`, `keyToAddress(key)`, `normalizeKey(key)` | Address, public key or neither; the P2PKH address of a public key |
+| `profileRef(author)` | What identifies the author in a link or a profile read: handle, then identity key, then key |
+| `monogram(name)`, `isExternal(author)`, `isCustodial(author)` | A placeholder letter; provenance flags |
+
+**Name.** The first non-empty of: the author's own on-chain profile
+(`identity`), the `display_name` written in the transaction (`tx`), an app
+account row (`account`), an off-chain platform profile (`external`, only when
+there is no identity and the transaction has no name), the local part of the
+account's paymail (`paymail`, unless it is a raw hex key), and finally the
+shortened key (`key`). `nameSource` records which one won. Show an `external`
+name with a marker saying where it is from.
+
+**Picture.** `avatarRef` maps to a URL like this:
+
+| Reference | URL |
+| --- | --- |
+| `uhrp://<sha256>` | `<uhrpBase>/uhrp/<sha256>` |
+| `b://<txid>` | `<mediaBase>/b/<txid>` (`/xavatar/<txid>`, a downscaling proxy, for an external profile) |
+| `ord://<txid>[_<vout>]` | `<mediaBase>/ord/<txid>[_<vout>]` |
+| `https://…`, `http://…` | unchanged (peck.to's own generated `/avatar/` URLs count as no picture) |
+| `data:image/…` | unchanged, up to 64 KiB |
+| anything else | `null`: show `generatedAvatarUrl` (or a monogram) |
+
+The first of identity, account and external whose reference maps to a URL wins
+(`avatarSource`). These URLs are for `<img src>`: an SVG loaded that way cannot
+run script, but do not use one as a link target or in an `<object>`. The hosts
+are `mediaBase` (default `https://peck.to`) and `uhrpBase` (default
+`https://peck.bio`); pass the ones your overlay was configured with.
+
+**Custodial keys.** A shared key such as treechat.io's belongs to an app, not to
+a person: `bakeAuthor` ignores identity, account and handle for it, and
+`custodialRelay` names the app.
+
+`bakeAuthor` needs `@bsv/sdk` to derive the address of a public key, so it is
+the one part of this module that is not tiny; the display helpers above pull in
+nothing else.
 
 ## Peck OS bridge (`/peckos`)
 

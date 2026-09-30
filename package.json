@@ -25,6 +25,10 @@
       "types": "./dist/read.d.ts",
       "import": "./dist/read.js"
     },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
+    },
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"

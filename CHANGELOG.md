@@ -19,6 +19,14 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   plain-script client it replaces, with unit tests for the message protocol.
 - `@overlay-social/sdk/peckos/browser`: the same module as one self-contained
   ES module (`dist/peckos.browser.js`) for pages without a build step.
+- `@overlay-social/sdk/identity`: the rules for showing an author, the same
+  ones the overlay applies when it builds an `AuthorView`: `bakeAuthor()`
+  (name precedence identity > tx > account > external > paymail > key, picture
+  precedence identity > account > external, identity key, custodial relay
+  keys), `avatarRefToUrl()` (`uhrp://`, `b://`, `ord://`, `http(s)`,
+  `data:image/`), `generatedAvatarUrl()`, `shortKey()`, `formatHandle()`,
+  `avatarSrc()`, `profileRef()` and key helpers. Tests replay every author in
+  the peck-view/v1 contract examples.
 - `createReadClient()` in `@overlay-social/sdk/read` (and the package root):
   a typed client for the overlay's `/v2` read model (peck-view/v1 contract):
   `feed`, `post`, `profile`, `posts` (chunked at 100), `viewerState` (chunked
