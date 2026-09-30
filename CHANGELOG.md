@@ -102,6 +102,12 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   envelopes, requests and rows recorded from peck.to's deployed DM client.
 - `@bsv/authsocket-client` as an optional peer dependency (live DM delivery)
   and a dev dependency (type check of the socket factory).
+- `/v2` client: `channels({ limit })` (`GET /v2/channels`, `ChannelList`:
+  channels by recent posts and chat rooms by latest message),
+  `identities({ limit })` (`GET /v2/identities`, `IdentityList`) and
+  `lenses({ issuer, scope, limit })` (`GET /v2/lenses`, `LensList`). New
+  exports: `ChannelsQuery`, `IdentitiesQuery`, `LensesQuery`,
+  `channelsSearchParams`, `identitiesSearchParams`, `lensesSearchParams`.
 
 ### Changed
 - Build is configured in `tsup.config.ts` with one entry per subpath.
@@ -113,6 +119,12 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `AppList`, `ReactionPage`, `Reaction` and `SiteStats`. The contract's
   `SourceHandle` is exported as `PeckViewSourceHandle`, because `SourceHandle`
   stays the `/v1` row's alias type, as before.
+- The vendored peck-view/v1 contract is re-synced again. New in the types:
+  `ChannelList`, `PostingChannel`, `ChatRoom`, `ChannelName`, `IdentityList`,
+  `LensList`, `Lens` and `LensRule`.
+- `sync:peck-view` no longer declares a numbered copy of a type (such as
+  `AuthorView1`) when the contract describes a field that references a shared
+  type; the field keeps the referenced type. The vendored schema is unchanged.
 
 ### Fixed
 - `/v1` `getFeed({ bbox })` sent the box longitude first, but `/v1/feed` reads

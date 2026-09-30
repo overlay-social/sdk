@@ -1,0 +1,35 @@
+{
+  "posting": [
+    {
+      "channel": "peck-dev",
+      "posts": 214
+    },
+    {
+      "channel": "scripture",
+      "posts": 96
+    },
+    {
+      "channel": "geohash",
+      "posts": 28
+    }
+  ],
+  "rooms": [
+    {
+      "channel": "mcp-chat",
+      "messages": 90,
+      "lastAt": "2026-09-29T21:40:19Z"
+    },
+    {
+      "channel": "hackathon",
+      "messages": 63,
+      "lastAt": "2026-04-15T23:49:19.250000Z"
+    },
+    {
+      "channel": "archive",
+      "messages": 4,
+      "lastAt": null
+    }
+  ],
+  "postingSince": "2026-08-31T15:00:00Z",
+  "asOf": "2026-09-30T15:00:00Z"
+}

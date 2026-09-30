@@ -68,8 +68,37 @@ function banner(sourceSha256) {
  */`
 }
 
+// A `$ref` next to its own `description`, to a type that is also referenced
+// elsewhere, makes json-schema-to-typescript declare a structural copy of that
+// type under a numbered name (AuthorView1 beside AuthorView). Types are
+// generated from a copy without those descriptions, so the field keeps the
+// referenced type. A type referenced only once keeps the description as its
+// doc comment. The vendored schema itself is not changed.
+function withoutSharedRefDescriptions(schema) {
+  const uses = new Map()
+  const count = (node) => {
+    if (Array.isArray(node)) return node.forEach(count)
+    if (node === null || typeof node !== 'object') return
+    if (typeof node.$ref === 'string') uses.set(node.$ref, (uses.get(node.$ref) ?? 0) + 1)
+    Object.values(node).forEach(count)
+  }
+  count(schema)
+  const strip = (node) => {
+    if (Array.isArray(node)) return node.map(strip)
+    if (node === null || typeof node !== 'object') return node
+    const shared = typeof node.$ref === 'string' && uses.get(node.$ref) > 1
+    const out = {}
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'description' && shared) continue
+      out[k] = strip(v)
+    }
+    return out
+  }
+  return strip(schema)
+}
+
 async function generateTypes(schema, sourceSha256) {
-  return compile(schema, 'PeckView', {
+  return compile(withoutSharedRefDescriptions(schema), 'PeckView', {
     bannerComment: banner(sourceSha256),
     // Emit every $defs entry, including ones only reachable from each other.
     unreachableDefinitions: true,
