@@ -28,6 +28,13 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `ProfileView`, `FeedPage`, `PostBatch`, `ViewerState`, …), generated from a
   vendored copy of the contract schema, with `npm run sync:peck-view` to
   refresh it and `npm run check:peck-view` (in CI) to catch stale types.
+- `@overlay-social/sdk/schema`: Bitcoin Schema builders (`post`, `reply`,
+  `quote`, `repost`, `like`, `unlike`, `follow`, `unfollow`, `tag`,
+  `message`, `profile`) and AIP signing through a BRC-100 wallet
+  (`signPayload`, BRC77 over the full preimage) with `verifyAip`. The layouts
+  reproduce mainnet transactions written by the peck.to web client byte for
+  byte (golden-vector tests).
+- Dependency: `@bsv/sdk` `^2.8.7`, used by the `schema` module only.
 - Contract tests: every contract example validates against the schema and
   round-trips through the client; a live smoke test runs when
   `PECK_VIEW_LIVE` is set.

@@ -4,8 +4,8 @@
 [![CI](https://github.com/overlay-social/sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/overlay-social/sdk/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Open%20BSV-blue.svg)](LICENSE)
 
-Minimal, read-only TypeScript client for **overlay.peck.to** — the canonical
-BSV / BRC-100 social overlay behind peck.to, peck.bio, peck.press and friends.
+TypeScript SDK for **overlay.peck.to** — the canonical BSV / BRC-100 social
+overlay behind peck.to, peck.bio, peck.press and friends.
 
 The package root is a **pure read lens**: the hydrated `/v2` read model plus
 the `/v1` facade for identity resolution, profiles, feed, and overlay state. It does **not** write, mint, pay, or federate — those
@@ -205,7 +205,7 @@ separate ESM entry point with its own type declarations).
 | Subpath | Purpose | Status |
 | --- | --- | --- |
 | `@overlay-social/sdk/read` | Typed read clients for the overlay: `/v2` read model (recommended) and the `/v1` facade (same surface as the package root) | available |
-| `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs | planned |
+| `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs, signed through a BRC-100 wallet | available |
 | `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | planned |
 | `@overlay-social/sdk/identity` | Render-ready helpers for identity fields such as avatar references and display names | planned |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for user-generated content | planned |
@@ -217,6 +217,53 @@ A subpath is only added to the `exports` map when its module ships.
 ```ts
 import { createReadClient, createOverlayClient } from '@overlay-social/sdk/read' // same as the root import
 ```
+
+## Bitcoin Schema builders (`/schema`)
+
+One builder per social action, producing the OP_RETURN output every peck
+client writes: a B section for the content, MAP for the metadata, and an AIP
+signature. The layouts match what the peck.to web client writes today byte for
+byte (the tests replay mainnet transactions).
+
+```ts
+import { post, reply, like, signPayload } from '@overlay-social/sdk/schema'
+
+const lockingScript = await signPayload(post({ app: 'peck.to', text: 'gm', tags: ['bsv'] }), { wallet })
+await wallet.createAction({
+  description: 'Post',
+  outputs: [{ lockingScript: lockingScript.toHex(), satoshis: 0, outputDescription: 'Post' }],
+})
+```
+
+| Builder | Writes |
+| --- | --- |
+| `post({ app, text?, media?, channel?, tags?, geo?, mentions? })` | B (text or media) + `MAP SET type post` (+ `ADD tags`) |
+| `reply({ ..., parentTxid })` | as `post`, pointing at the parent (`context tx`, `tx`, `reply`) |
+| `quote({ ..., targetTxid })` | own content + `type repost`, `tx <target>` |
+| `repost({ app, targetTxid })` | `MAP SET type repost tx <target>` |
+| `like` / `unlike({ app, targetTxid })` | `MAP SET type like\|unlike tx <target>` |
+| `follow` / `unfollow({ app, address, handle? })` | `MAP SET type follow\|unfollow [handle] address` |
+| `tag({ app, targetTxid, tags, category?, lang?, tone? })` | `MAP SET type tag context tx tx <target> tags a,b` |
+| `message({ app, text, channel? \| recipient? })` | B `text/plain` + `MAP SET type message` |
+| `profile({ app, displayName, avatar?, bio?, certRef? })` | `MAP SET type profile display_name …` |
+
+Builders are pure and synchronous and return a `SchemaPayload`. They reject
+empty values and values that would read as a section separator. `signPayload()`
+appends the AIP section and returns an `@bsv/sdk` `LockingScript`.
+
+**Signing.** The SDK never holds a private key. `signPayload()` asks the
+wallet (any BRC-100 `WalletInterface`, e.g. the one `PeckOS.detect()` returns)
+for the signing key and for a signature over the digest. By default the key is
+derived with protocol `[1, 'identity']`, key ID `'1'` and counterparty
+`'self'`, the key peck.to clients sign with. The signature is checked against
+the key before it is used.
+
+**AIP, BRC77 over the full preimage.** The signed bytes are the data of every
+push after OP_FALSE OP_RETURN, up to and including the signing key: the B and
+MAP sections, each separator as the byte `0x7c`, then the AIP prefix, `BRC77`
+and the key. Length prefixes and the signature push are not included. The
+digest is one SHA-256, and the script carries the DER signature in base64.
+`verifyAip(script)` checks it. Details are in `src/schema/aip.ts`.
 
 ## Peck OS bridge (`/peckos`)
 
