@@ -1,0 +1,184 @@
+{
+  "post": {
+    "txid": "a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7",
+    "type": "post",
+    "kind": null,
+    "app": "zanaadu",
+    "author": {
+      "key": "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+      "address": "1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP",
+      "identityKey": "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+      "handle": null,
+      "displayName": "02c604…9ee5",
+      "nameSource": "key",
+      "avatarUrl": null,
+      "avatarRef": null,
+      "avatarSource": null,
+      "generatedAvatarUrl": "https://peck.to/avatar/02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5?seed=1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP",
+      "paymail": null,
+      "custodialRelay": null,
+      "external": null,
+      "sourceHandle": {
+        "namespace": "zanaadu",
+        "value": "@14",
+        "number": 14,
+        "kind": "user_number",
+        "membershipProof": "none"
+      }
+    },
+    "createdAt": "2026-07-28T13:19:47.123000Z",
+    "blockHeight": null,
+    "text": "first **xanapost**",
+    "mediaType": null,
+    "textTruncated": false,
+    "textLength": 18,
+    "media": [],
+    "tags": [
+      "fifa"
+    ],
+    "channel": null,
+    "geo": null,
+    "parentTxid": null,
+    "threadRootTxid": null,
+    "parent": null,
+    "refTxid": null,
+    "refKind": null,
+    "ref": null,
+    "counts": {
+      "likes": 0,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0,
+      "tipSats": 0,
+      "lockedSats": 0,
+      "powBits": 0
+    },
+    "provenance": {
+      "grade": "unverified",
+      "aipVerified": null,
+      "nameInTx": null
+    },
+    "paywalled": false,
+    "source": {
+      "protocol": "zanaadu",
+      "action": "xanapost",
+      "commitment": {
+        "algorithm": "sha256",
+        "covers": "text",
+        "hash": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+        "verified": true,
+        "location": "input0.state"
+      },
+      "feeSats": 1000,
+      "unattributedOutputs": 8,
+      "unattributedSats": 1234567,
+      "vote": null
+    }
+  },
+  "parent": null,
+  "replies": [
+    {
+      "txid": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+      "type": "reply",
+      "kind": null,
+      "app": "zanaadu",
+      "author": {
+        "key": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "handle": null,
+        "displayName": "027eaf…9ad0",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null,
+        "sourceHandle": {
+          "namespace": "zanaadu",
+          "value": "@3",
+          "number": 3,
+          "kind": "user_number",
+          "membershipProof": "none",
+          "numbers": [
+            3,
+            7
+          ]
+        }
+      },
+      "createdAt": "2026-07-29T10:00:00Z",
+      "blockHeight": null,
+      "text": "a xanareply",
+      "mediaType": null,
+      "textTruncated": false,
+      "textLength": 11,
+      "media": [],
+      "tags": [],
+      "channel": null,
+      "geo": null,
+      "parentTxid": "a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7",
+      "threadRootTxid": null,
+      "parent": {
+        "txid": "a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7",
+        "author": {
+          "key": "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+          "address": "1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP",
+          "identityKey": "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+          "handle": null,
+          "displayName": "02c604…9ee5",
+          "nameSource": "key",
+          "avatarUrl": null,
+          "avatarRef": null,
+          "avatarSource": null,
+          "generatedAvatarUrl": "https://peck.to/avatar/02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5?seed=1cMh228HTCiwS8ZsaakH8A8wze1JR5ZsP",
+          "paymail": null,
+          "custodialRelay": null,
+          "external": null,
+          "sourceHandle": {
+            "namespace": "zanaadu",
+            "value": "@14",
+            "number": 14,
+            "kind": "user_number",
+            "membershipProof": "none"
+          }
+        }
+      },
+      "refTxid": null,
+      "refKind": null,
+      "ref": null,
+      "counts": {
+        "likes": 0,
+        "replies": 0,
+        "reposts": 0,
+        "quotes": 0,
+        "tipSats": 0,
+        "lockedSats": 0,
+        "powBits": 0
+      },
+      "provenance": {
+        "grade": "unverified",
+        "aipVerified": null,
+        "nameInTx": null
+      },
+      "paywalled": false,
+      "source": {
+        "protocol": "zanaadu",
+        "action": "xanareply",
+        "commitment": {
+          "algorithm": "sha256",
+          "covers": "text",
+          "hash": "4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+          "verified": true,
+          "location": null
+        },
+        "feeSats": 1000,
+        "unattributedOutputs": null,
+        "unattributedSats": null,
+        "vote": null
+      }
+    }
+  ],
+  "repliesTruncated": false
+}

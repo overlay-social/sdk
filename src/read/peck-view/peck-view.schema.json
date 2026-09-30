@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://overlay.peck.to/contracts/peck-view/v1/peck-view.schema.json",
-  "$comment": "Vendored copy of the peck-view/v1 contract (source sha256 fa01f861e3beaeca54ef3cf139d5085438cb326fa46ccb21e4f39556b6227f8d). Written by scripts/sync-peck-view.mjs; do not edit by hand.",
+  "$comment": "Vendored copy of the peck-view/v1 contract (source sha256 c0b333deb3b36da1adfa0580ea51ae53ccfa8d91436c856ecfb5c1b7896cb83a). Written by scripts/sync-peck-view.mjs; do not edit by hand.",
   "title": "PeckView",
-  "description": "peck-view/v1: the hydrated read model served by the overlay under /v2. The overlay (producer) owns this contract; clients and the SDK consume it. Every view is viewer-independent: nothing in a PostView, ThreadView, ProfileView or FeedPage depends on who asks, so responses can be cached by URL. Per-viewer facts (liked by me, following, blocked) live only in ViewerState. Evolution rules: within v1 the overlay may ADD optional properties and ADD enum values documented as open; it never removes, renames or retypes a property. Consumers must ignore properties they do not know. A breaking change is a new contract version (peck-view/v2) served side by side. The producer validates its own responses strictly (additionalProperties: false), so a leaked database column fails the overlay's own contract tests.",
-  "oneOf": [
+  "description": "peck-view/v1: the hydrated read model served by the overlay under /v2. The overlay (producer) owns this contract; clients and the SDK consume it. Every view is viewer-independent: nothing in a PostView, ThreadView, ProfileView or FeedPage depends on who asks, so responses can be cached by URL. Per-viewer facts (liked by me, following, blocked) live only in ViewerState. Evolution rules: within v1 the overlay may ADD optional properties and ADD enum values documented as open; it never removes, renames or retypes a property. Consumers must ignore properties they do not know. A breaking change is a new contract version (peck-view/v2) served side by side. The producer validates its own responses strictly (additionalProperties: false), so a leaked database column fails the overlay's own contract tests. TypeScript types are generated from this schema.",
+  "anyOf": [
     {
       "$ref": "#/$defs/FeedPage"
     },
@@ -19,6 +19,15 @@
     },
     {
       "$ref": "#/$defs/ViewerState"
+    },
+    {
+      "$ref": "#/$defs/AppList"
+    },
+    {
+      "$ref": "#/$defs/ReactionPage"
+    },
+    {
+      "$ref": "#/$defs/SiteStats"
     },
     {
       "$ref": "#/$defs/ErrorResponse"
@@ -45,7 +54,7 @@
     },
     "AuthorView": {
       "title": "AuthorView",
-      "description": "Who signed a post, resolved once on the overlay. A single function produces every AuthorView, so all clients show the same name, handle and picture for the same key. Identity is keyed on keys, never on names: `key` is the on-chain signer and `identityKey` the BRC-100 identity it resolves to. Names, handles and pictures are labels that can change between reads.",
+      "description": "Who signed a post, resolved once on the overlay. Every AuthorView comes from the same resolution, so all clients show the same name, handle and picture for the same key. Identity is keyed on keys, never on names: `key` is the on-chain signer and `identityKey` the BRC-100 identity it resolves to. Names, handles and pictures are labels that can change between reads.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -67,7 +76,7 @@
         "key": {
           "type": "string",
           "minLength": 1,
-          "description": "The key that signed the post, exactly as indexed (pecks.author): a base58 P2PKH address, or a 66-hex compressed public key for agent and BRC-100-native authors. Constant for the post. Use it as the profile fallback when `handle` and `identityKey` are null."
+          "description": "The key that signed the post, exactly as indexed: a base58 P2PKH address, or a 66-hex compressed public key for agent and BRC-100-native authors. Constant for the post. Use it as the profile fallback when `handle` and `identityKey` are null."
         },
         "address": {
           "type": [
@@ -92,7 +101,7 @@
             "string",
             "null"
           ],
-          "description": "Canonical handle without the leading @, from on-chain claims only: light handle claims (identity_handles) > HandleToken > the ProfileToken's own handle field. Resolved on every read, so it can move to a new owner; the key cannot. Null when unclaimed, and always null for custodial relay keys."
+          "description": "Canonical handle without the leading @, from on-chain claims only: light handle claims > HandleToken > the ProfileToken's own handle field. Resolved on every read, so it can move to a new owner; the key cannot. Null when unclaimed, and always null for custodial relay keys."
         },
         "displayName": {
           "type": "string",
@@ -116,7 +125,7 @@
             "string",
             "null"
           ],
-          "description": "URL of the author's own picture, ready for an <img src>. Null when the author has no usable picture; peck-native clients then show `generatedAvatarUrl`, others a monogram. Mapping from `avatarRef`, the only place it is done: uhrp://<sha256> → <UHRP base>/uhrp/<sha256>; b://<txid> → <media base>/b/<txid> (<media base>/xavatar/<txid>, a downscaling proxy, when the picture comes from an external profile); ord://<outpoint> → <media base>/ord/<outpoint>; https:// and http:// URLs pass through; data:image/* URIs pass through; peck.to's own generated /avatar/ URLs count as no picture; anything else maps to null. The media base defaults to https://peck.to."
+          "description": "URL of the author's own picture, ready for an <img src>. Null when the author has no usable picture; peck-native clients then show `generatedAvatarUrl`, others a monogram. Mapping from `avatarRef`, the only place it is done: uhrp://<sha256> → <UHRP host>/uhrp/<sha256>; b://<txid> → <media base>/b/<txid> (<media base>/xavatar/<txid>, a downscaling proxy, when the picture comes from an external profile); ord://<outpoint> → <media base>/ord/<outpoint>; https:// and http:// URLs pass through; data:image/* URIs pass through; peck.to's own generated /avatar/ URLs count as no picture; anything else maps to null. The media base and the UHRP host are set by the overlay operator; the media base is https://peck.to by default."
         },
         "avatarRef": {
           "type": [
@@ -166,6 +175,63 @@
             }
           ],
           "description": "Set when the name or the picture came from an off-chain platform profile (nameSource or avatarSource is external). Null otherwise."
+        },
+        "sourceHandle": {
+          "$ref": "#/$defs/SourceHandle",
+          "description": "An alias the key holds in another protocol's own namespace (a Zanaadu user number, @14), shown next to the key and never as a peck handle. Absent when the key holds none. Carried on the authors of Zanaadu posts and on profiles; other surfaces may leave it out. Optional within v1."
+        }
+      }
+    },
+    "SourceHandle": {
+      "title": "SourceHandle",
+      "description": "A name a key holds in another protocol's registry. It lives in that protocol's namespace: render it with the namespace (@14 · zanaadu), never as a handle of this network.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "value",
+        "number",
+        "kind",
+        "membershipProof"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Whose namespace the alias lives in: zanaadu. Open set."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The alias as the source shows it, e.g. @14."
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The user number itself. When the key owns several, the lowest (which one the source shows is not proven)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "user_number"
+          ],
+          "description": "What sort of alias this is: a numbered registry entry the source lets users buy and move, not a chosen name. Open set."
+        },
+        "numbers": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "minItems": 2,
+          "description": "Every number the key owns, ascending. Present only when it owns more than one."
+        },
+        "membershipProof": {
+          "type": "string",
+          "enum": [
+            "none"
+          ],
+          "description": "Whether the overlay verified the entry against the registry's merkle root. none: the number is derived from the registry's own counter, membership is not proven."
         }
       }
     },
@@ -210,7 +276,7 @@
         "likes": {
           "type": "integer",
           "minimum": 0,
-          "description": "Reactions targeting this post (every row in reactions, like /v1/post; not unique reactors)."
+          "description": "Reaction records targeting this post, all of them (the same number /v1/post reports): not unique reactors."
         },
         "replies": {
           "type": "integer",
@@ -230,7 +296,7 @@
         "tipSats": {
           "type": "integer",
           "minimum": 0,
-          "description": "Satoshis paid with this post as context (sum of payments.amount where context_txid is this post)."
+          "description": "Satoshis paid with this post as the payment's context, summed over every indexed payment."
         },
         "lockedSats": {
           "type": "integer",
@@ -262,14 +328,14 @@
             "key",
             "unverified"
           ],
-          "description": "Decided in this order. custodial: signed by a known shared custodial key, or app is treechat; the signer is the app, not the person (decided first because it rests on facts the index always holds). key: the Author Identity Protocol signature was verified against the author key. unverified: no verified signature on record; a statement about the index, not proof of forgery (some apps sign over preimage variants the verifier does not check)."
+          "description": "Decided in this order. custodial: signed by a known shared custodial key, or app is treechat; the signer is the app, not the person (decided first because it rests on facts the index always holds). key: the Author Identity Protocol signature was verified against the author key. unverified: no verified signature on record; a statement about the index, not proof of forgery (some apps sign over preimage variants the verifier does not check). Posts carried by another protocol (PostView.source) are graded unverified: they carry no AIP signature, and source.commitment says what they carry instead."
         },
         "aipVerified": {
           "type": [
             "boolean",
             "null"
           ],
-          "description": "The indexer's raw AIP verification flag (pecks.aip_verified). Null when the indexer never checked."
+          "description": "The indexer's raw AIP verification flag. Null when the indexer never checked."
         },
         "nameInTx": {
           "type": [
@@ -317,7 +383,7 @@
             "null"
           ],
           "minimum": 0,
-          "description": "Output index for an extra output (post_attachments). Null for the post's main B body."
+          "description": "Output index for an extra output. Null for the post's main B body."
         },
         "sizeBytes": {
           "type": [
@@ -331,7 +397,7 @@
     },
     "Geo": {
       "title": "Geo",
-      "description": "Location the author attached to the post.",
+      "description": "Where a post was placed, as the author wrote it on chain (MAP lat, lng and optionally category). The coordinates are WGS84 degrees.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -350,6 +416,14 @@
           "minimum": -180,
           "maximum": 180,
           "description": "Longitude in degrees."
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64,
+          "description": "What kind of place this is, from MAP category, lowercase: peck.world writes general, business, event, alert, idea or photo. Open set; treat null and unknown values as general. Optional within v1: absent only from overlays that predate it."
         }
       }
     },
@@ -383,7 +457,7 @@
     },
     "PostView": {
       "title": "PostView",
-      "description": "One post, hydrated for rendering: author, counts, media, provenance, one level of referenced post and a stub of the parent. Viewer-independent. Produced only by hydratePosts.",
+      "description": "One post, hydrated for rendering: author, counts, media, provenance, one level of referenced post and a stub of the parent. Viewer-independent. Every PostView comes from the same hydration step, whether it is served in a feed, a thread or a batch.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -420,21 +494,21 @@
         },
         "type": {
           "type": "string",
-          "description": "Bitcoin Schema MAP type as indexed: post, reply or repost today. Open set: other values (e.g. function_response) may appear; render unknown types as a post."
+          "description": "Bitcoin Schema MAP type as indexed: post, reply or repost today. Open set: other values (e.g. function_response) may appear; render unknown types as a post. Posts carried by another protocol (see `source`) use post, reply and vote; a vote has no text of its own, and source.vote names its target. A location never changes the type: a pin is a post (or reply, or repost) whose `geo` is set, and a pin written with the legacy MAP type pin is served as type post with kind pin. object is a located object that is not a post (a place registered by an app such as locus): it always has `geo`, usually has no text, and a text feed can leave it out by asking for types=post,reply,repost."
         },
         "kind": {
           "type": [
             "string",
             "null"
           ],
-          "description": "Content kind from MAP (e.g. longform, note), lowercase. Null when unset."
+          "description": "Content kind from MAP (e.g. longform, note), lowercase. Null when unset. pin marks a post written with the legacy MAP type pin (peck.world before June 2026); it renders exactly like any other post with a location. Never filter pins by kind: most pins have no kind, and `geo` is what makes a post a pin."
         },
         "app": {
           "type": [
             "string",
             "null"
           ],
-          "description": "The MAP app that wrote the transaction (peck.to, twetch, treechat, …). Null when unset."
+          "description": "The MAP app that wrote the transaction (peck.to, twetch, treechat, …), or zanaadu for Zanaadu posts, replies and votes (see `source`). Null when unset."
         },
         "author": {
           "$ref": "#/$defs/AuthorView"
@@ -480,7 +554,7 @@
           "items": {
             "$ref": "#/$defs/MediaItem"
           },
-          "description": "Media carried by the transaction: the B body when its media type is image/*, audio/* or video/*, followed by every extra output (post_attachments) in vout order, whatever its type. Empty when there is none."
+          "description": "Media carried by the transaction: the B body when its media type is image/*, audio/* or video/*, followed by every extra output the index holds for the transaction, in vout order, whatever its type. Empty when there is none."
         },
         "tags": {
           "type": "array",
@@ -506,7 +580,7 @@
               "type": "null"
             }
           ],
-          "description": "Location attached to the post, when both lat and lng are set."
+          "description": "Location attached to the post: set when the transaction carries a MAP lat and lng in range. (0, 0) counts as no location. Every app reads the same field, so a location written by one app (peck.to, peck.world, …) shows in all of them. Null when the post has none."
         },
         "parentTxid": {
           "anyOf": [
@@ -528,7 +602,7 @@
               "type": "null"
             }
           ],
-          "description": "The thread root as materialized by the indexer (thread_root_tx), or null. Not filled for most replies yet: walk parentTxid when you need the root."
+          "description": "The thread root as materialized by the indexer, or null. Not filled for most replies yet: walk parentTxid when you need the root."
         },
         "parent": {
           "anyOf": [
@@ -550,7 +624,7 @@
               "type": "null"
             }
           ],
-          "description": "The post this one reposts or quotes: the indexed ref_txid; for older rows without one, a MAP quote target ({\"subcontext\":\"quote\",\"tx\":…}) or the first twetch.com/t/<txid> link in the text."
+          "description": "The post this one reposts or quotes: the indexed reference; for older posts without one, a MAP quote target ({\"subcontext\":\"quote\",\"tx\":…}) or the first twetch.com/t/<txid> link in the text."
         },
         "refKind": {
           "type": [
@@ -584,6 +658,166 @@
         "paywalled": {
           "type": "boolean",
           "description": "True when the overlay withheld text and media because the operator's paywall covers the post (text null, media empty). /v2 never unlocks content per viewer. The paywall is disabled in production, so this is false today."
+        },
+        "source": {
+          "$ref": "#/$defs/PostSource",
+          "description": "Present when the post is carried by another protocol than Bitcoin Schema (today: Zanaadu). Such a post has no AIP signature, so provenance.grade is unverified and aipVerified null; its integrity is source.commitment, which is what a renderer shows instead of the AIP grade. Absent for Bitcoin Schema posts. Optional within v1."
+        }
+      }
+    },
+    "PostSource": {
+      "title": "PostSource",
+      "description": "What the chain proves about a post carried by another protocol, and only that. For Zanaadu: the text sits in a transaction input under a covenant, committed to by a sha256 hash; the transaction pays a fixed platform fee; its other outputs go to one-time addresses and cannot be attributed to anyone, so they are never counted as tips or earnings.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "action",
+        "commitment",
+        "feeSats",
+        "unattributedOutputs",
+        "unattributedSats",
+        "vote"
+      ],
+      "properties": {
+        "protocol": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The protocol that carries the post: zanaadu. Open set."
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The source's own verb for the transaction, untranslated: xanapost, xanareply, xanaupvote or xanadownvote for Zanaadu. Open set."
+        },
+        "commitment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentCommitment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The integrity commitment the transaction carries. Null when none was recorded."
+        },
+        "feeSats": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The platform fee the transaction paid: the one payment that is proven on-chain (a fixed amount to a fixed address). It is what the poster paid, not what anyone earned."
+        },
+        "unattributedOutputs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "How many other outputs the transaction has that cannot be attributed to anyone (change and payments look alike). Null when not recorded."
+        },
+        "unattributedSats": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Their total in satoshis. Never a tip or an earning. Null when not recorded."
+        },
+        "vote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceVote"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "For a vote (type vote): its direction and target. Null for posts and replies."
+        }
+      }
+    },
+    "ContentCommitment": {
+      "title": "ContentCommitment",
+      "description": "A hash the transaction commits to, and whether the overlay verified it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "covers",
+        "hash",
+        "verified",
+        "location"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": [
+            "sha256"
+          ],
+          "description": "The hash function. Open set."
+        },
+        "covers": {
+          "type": "string",
+          "enum": [
+            "text",
+            "target"
+          ],
+          "description": "What is hashed: text, the post's full text (posts, replies); target, the target's txid (votes). Open set."
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "The committed hash, 64 lowercase hex."
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "True when the overlay found the commitment in the transaction and, for text, the hash of the text it serves equals it."
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Where in the transaction the commitment was found, as the source format names it. Null when not recorded."
+        }
+      }
+    },
+    "SourceVote": {
+      "title": "SourceVote",
+      "description": "A vote on another post, as the source records it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direction",
+        "targetTxid",
+        "amountSats"
+      ],
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": [
+            "up",
+            "down"
+          ],
+          "description": "Up or down, from the topic the vote was admitted to."
+        },
+        "targetTxid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Txid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The post voted on (open it with GET /v2/post/{txid}). Null when the source no longer holds it."
+        },
+        "amountSats": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "The amount the vote carries in its data. Its recipient cannot be proven, so it is not a payment to anyone. Null when absent."
         }
       }
     },
@@ -628,7 +862,7 @@
     },
     "FeedCursor": {
       "title": "FeedCursor",
-      "description": "Keyset position after the last item of a page, in the ecosystem's structured-cursor form (before_<sort column>=<value>). Send every key and value back unchanged as query parameters, together with the same filters, to get the next page. The keys follow the sort columns of the chosen rank (before_ts and before_txid for rank=latest), so treat them as opaque.",
+      "description": "Keyset position after the last item of a page, in the structured-cursor form before_<sort column>=<value>. Send every key and value back unchanged as query parameters, together with the same filters, to get the next page. The keys follow the sort columns of the chosen rank (before_ts and before_txid for rank=latest), so treat them as opaque.",
       "type": "object",
       "minProperties": 1,
       "additionalProperties": {
@@ -713,12 +947,60 @@
           "type": "integer",
           "minimum": 0,
           "description": "Follow records made by any of the profile's keys."
+        },
+        "posts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Indexed posts of every type (posts, replies, reposts) signed by any of the profile's keys: what GET /v2/feed?author=<keys> pages through. Counted live. Optional within v1: absent only from overlays that predate it."
+        }
+      }
+    },
+    "IdentityCertificate": {
+      "title": "IdentityCertificate",
+      "description": "One attribute certified for an identity (an account on a platform, an email address), with every certifier that attests it. Only certificates that were published for the identity, are issued to it, carry a valid certifier signature and are not revoked on-chain are listed. Clients decide which certifiers they trust.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "value",
+        "certifiers",
+        "certificateHashes"
+      ],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Lowercase id of the certificate type's platform: x, discord, email, google, github, peck. Open set: unknown for a certificate type the overlay does not recognise; render unknown values generically."
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The certified identifier to show: the first non-empty of the certificate's userName, username, handle, name, email or sub fields, else its first non-empty field. Null when the certificate carries none. Untrusted user text."
+        },
+        "certifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/IdentityKey"
+          },
+          "description": "Public keys of the certifiers whose certificates attest this platform and value, sorted, no duplicates."
+        },
+        "certificateHashes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "description": "SHA-256 content hashes (UHRP addresses) of those certificate documents, sorted, so a client can fetch and verify them itself."
         }
       }
     },
     "ProfileView": {
       "title": "ProfileView",
-      "description": "Response of GET /v2/profile/{key|@handle}: an identity's header. `author` is baked exactly like a post author; author.key is the key the profile was looked up by (the handle owner's identity key for @handle lookups). Its posts come from GET /v2/feed?author=… (a FeedPage).",
+      "description": "Response of GET /v2/profile/{key|@handle|name}: an identity's header. The path segment is an address, a public key, an on-chain handle (with or without @), or a legacy peck.to account name (its username, paymail, or the paymail's local part); an on-chain handle wins over an account name. `author` is baked exactly like a post author; author.key is the key the profile was looked up by (the handle owner's identity key for handle lookups, the account's address for account names). Its posts come from GET /v2/feed?author=… (a FeedPage).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -755,6 +1037,13 @@
         },
         "counts": {
           "$ref": "#/$defs/ProfileCounts"
+        },
+        "certificates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IdentityCertificate"
+          },
+          "description": "Verified certificates of the identity, one entry per platform and value, ordered by platform then value. Empty when the profile has no identity key or none verify. Optional within v1: absent from overlays that predate it, and from an answer that could not verify them in time (such an answer is not cacheable)."
         }
       }
     },
@@ -840,6 +1129,179 @@
             "$ref": "#/$defs/AuthorViewerState"
           },
           "description": "State per requested author key, keyed exactly as requested."
+        }
+      }
+    },
+    "AppCount": {
+      "title": "AppCount",
+      "description": "How many posts one MAP app has written.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app",
+        "count"
+      ],
+      "properties": {
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The MAP app name as indexed (peck.to, twetch, treechat, ...), exactly the value GET /v2/feed?app= filters on."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Posts of the requested types written by this app. As of AppList.asOf, not live."
+        }
+      }
+    },
+    "AppList": {
+      "title": "AppList",
+      "description": "The apps that have written posts, most posts first (GET /v2/apps): what an app filter chip row needs. Counts are materialized, not live: they are as old as `asOf`, refreshed in the background about every 5 minutes. Counts cover exactly the posts GET /v2/feed serves and can filter on.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apps",
+        "asOf"
+      ],
+      "properties": {
+        "apps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AppCount"
+          },
+          "description": "Ordered by count descending, then by app name. Apps with no posts of the requested types are absent."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When these counts were taken, ISO 8601 in UTC with a trailing Z."
+        }
+      }
+    },
+    "Reaction": {
+      "title": "Reaction",
+      "description": "One like or repost of a post, and who made it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "txid",
+        "createdAt",
+        "emoji",
+        "actorKey",
+        "author"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "like",
+            "repost"
+          ],
+          "description": "like: a like record of the post. repost: a post of type repost that references it. Open set: render an unknown kind generically."
+        },
+        "txid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Txid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The transaction that made the reaction: the like, or the repost post (open it with GET /v2/post/{txid}). Null for likes indexed without their transaction id."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the reaction was made (the indexed timestamp), ISO 8601 in UTC with a trailing Z."
+        },
+        "emoji": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The like's emoji as written on-chain (twetch upvotes arrive as ⬆︎). Null for reposts and for likes without one. Untrusted user text."
+        },
+        "actorKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who reacted, exactly as indexed. Usually a key (a P2PKH address or a public key); some imported likes carry only a placeholder such as unknown or scripthash:…, and then `author` is null."
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Who reacted, baked exactly like a post author, so the name, handle and picture match that person's posts. For a repost it carries the name the repost transaction gives (custodial relays name their users there). Null when actorKey is not a key."
+        }
+      }
+    },
+    "ReactionPage": {
+      "title": "ReactionPage",
+      "description": "Response of GET /v2/post/{txid}/reactions?kind=like|repost: who liked or reposted a post, newest first, a page at a time (limit 1-100, default 50). Every like record and every repost is listed, including reactors without a usable key, so the pages add up to PostCounts.likes and PostCounts.reposts. Quotes are posts with their own text and are not listed here. An unknown or not yet indexed txid is an empty page, not an error.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "next"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Reaction"
+          },
+          "description": "The reactions on this page, newest first."
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeedCursor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cursor for the next page, in the same structured form as FeedPage.next (before_ts with before_actor for likes, with before_txid for reposts); send it back with the same txid and kind. Null when this is the last page."
+        }
+      }
+    },
+    "SiteStats": {
+      "title": "SiteStats",
+      "description": "Response of GET /v2/stats: the site totals a sidebar shows. Both numbers are the database planner's row estimates, not counts: close to the truth on a large table, updated as the database re-analyzes it, and never exact to the post. Render them rounded (2.6M posts).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posts",
+        "accounts",
+        "estimated",
+        "asOf"
+      ],
+      "properties": {
+        "posts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Indexed posts of every type (posts, replies, reposts), estimated. 0 on a database never analyzed."
+        },
+        "accounts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Legacy peck.to accounts, estimated. On-chain identities without an account are not counted."
+        },
+        "estimated": {
+          "type": "boolean",
+          "const": true,
+          "description": "Always true: the numbers are estimates. Present so a client can never mistake them for counts."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the estimates were read, ISO 8601 in UTC with a trailing Z."
         }
       }
     },

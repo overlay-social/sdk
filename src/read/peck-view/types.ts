@@ -5,13 +5,22 @@
  * (src/read/peck-view/peck-view.schema.json). Do not edit by hand: re-run
  * `npm run sync:peck-view -- <path to the contract schema>`.
  *
- * Contract source sha256: fa01f861e3beaeca54ef3cf139d5085438cb326fa46ccb21e4f39556b6227f8d
+ * Contract source sha256: c0b333deb3b36da1adfa0580ea51ae53ccfa8d91436c856ecfb5c1b7896cb83a
  */
 
 /**
- * peck-view/v1: the hydrated read model served by the overlay under /v2. The overlay (producer) owns this contract; clients and the SDK consume it. Every view is viewer-independent: nothing in a PostView, ThreadView, ProfileView or FeedPage depends on who asks, so responses can be cached by URL. Per-viewer facts (liked by me, following, blocked) live only in ViewerState. Evolution rules: within v1 the overlay may ADD optional properties and ADD enum values documented as open; it never removes, renames or retypes a property. Consumers must ignore properties they do not know. A breaking change is a new contract version (peck-view/v2) served side by side. The producer validates its own responses strictly (additionalProperties: false), so a leaked database column fails the overlay's own contract tests.
+ * peck-view/v1: the hydrated read model served by the overlay under /v2. The overlay (producer) owns this contract; clients and the SDK consume it. Every view is viewer-independent: nothing in a PostView, ThreadView, ProfileView or FeedPage depends on who asks, so responses can be cached by URL. Per-viewer facts (liked by me, following, blocked) live only in ViewerState. Evolution rules: within v1 the overlay may ADD optional properties and ADD enum values documented as open; it never removes, renames or retypes a property. Consumers must ignore properties they do not know. A breaking change is a new contract version (peck-view/v2) served side by side. The producer validates its own responses strictly (additionalProperties: false), so a leaked database column fails the overlay's own contract tests. TypeScript types are generated from this schema.
  */
-export type PeckView = FeedPage | ThreadView | ProfileView | PostBatch | ViewerState | ErrorResponse
+export type PeckView =
+  | FeedPage
+  | ThreadView
+  | ProfileView
+  | PostBatch
+  | ViewerState
+  | AppList
+  | ReactionPage
+  | SiteStats
+  | ErrorResponse
 /**
  * A BRC-100 identity key: a 66-hex compressed secp256k1 public key, lowercase.
  */
@@ -39,7 +48,7 @@ export interface FeedPage {
   next: FeedCursor | null
 }
 /**
- * One post, hydrated for rendering: author, counts, media, provenance, one level of referenced post and a stub of the parent. Viewer-independent. Produced only by hydratePosts.
+ * One post, hydrated for rendering: author, counts, media, provenance, one level of referenced post and a stub of the parent. Viewer-independent. Every PostView comes from the same hydration step, whether it is served in a feed, a thread or a batch.
  */
 export interface PostView {
   /**
@@ -47,15 +56,15 @@ export interface PostView {
    */
   txid: string
   /**
-   * Bitcoin Schema MAP type as indexed: post, reply or repost today. Open set: other values (e.g. function_response) may appear; render unknown types as a post.
+   * Bitcoin Schema MAP type as indexed: post, reply or repost today. Open set: other values (e.g. function_response) may appear; render unknown types as a post. Posts carried by another protocol (see `source`) use post, reply and vote; a vote has no text of its own, and source.vote names its target. A location never changes the type: a pin is a post (or reply, or repost) whose `geo` is set, and a pin written with the legacy MAP type pin is served as type post with kind pin. object is a located object that is not a post (a place registered by an app such as locus): it always has `geo`, usually has no text, and a text feed can leave it out by asking for types=post,reply,repost.
    */
   type: string
   /**
-   * Content kind from MAP (e.g. longform, note), lowercase. Null when unset.
+   * Content kind from MAP (e.g. longform, note), lowercase. Null when unset. pin marks a post written with the legacy MAP type pin (peck.world before June 2026); it renders exactly like any other post with a location. Never filter pins by kind: most pins have no kind, and `geo` is what makes a post a pin.
    */
   kind: string | null
   /**
-   * The MAP app that wrote the transaction (peck.to, twetch, treechat, …). Null when unset.
+   * The MAP app that wrote the transaction (peck.to, twetch, treechat, …), or zanaadu for Zanaadu posts, replies and votes (see `source`). Null when unset.
    */
   app: string | null
   author: AuthorView
@@ -84,7 +93,7 @@ export interface PostView {
    */
   textLength: number
   /**
-   * Media carried by the transaction: the B body when its media type is image/*, audio/* or video/*, followed by every extra output (post_attachments) in vout order, whatever its type. Empty when there is none.
+   * Media carried by the transaction: the B body when its media type is image/*, audio/* or video/*, followed by every extra output the index holds for the transaction, in vout order, whatever its type. Empty when there is none.
    */
   media: MediaItem[]
   /**
@@ -96,7 +105,7 @@ export interface PostView {
    */
   channel: string | null
   /**
-   * Location attached to the post, when both lat and lng are set.
+   * Location attached to the post: set when the transaction carries a MAP lat and lng in range. (0, 0) counts as no location. Every app reads the same field, so a location written by one app (peck.to, peck.world, …) shows in all of them. Null when the post has none.
    */
   geo: Geo | null
   /**
@@ -104,7 +113,7 @@ export interface PostView {
    */
   parentTxid: Txid | null
   /**
-   * The thread root as materialized by the indexer (thread_root_tx), or null. Not filled for most replies yet: walk parentTxid when you need the root.
+   * The thread root as materialized by the indexer, or null. Not filled for most replies yet: walk parentTxid when you need the root.
    */
   threadRootTxid: Txid | null
   /**
@@ -112,7 +121,7 @@ export interface PostView {
    */
   parent: ParentStub | null
   /**
-   * The post this one reposts or quotes: the indexed ref_txid; for older rows without one, a MAP quote target ({"subcontext":"quote","tx":…}) or the first twetch.com/t/<txid> link in the text.
+   * The post this one reposts or quotes: the indexed reference; for older posts without one, a MAP quote target ({"subcontext":"quote","tx":…}) or the first twetch.com/t/<txid> link in the text.
    */
   refTxid: Txid | null
   /**
@@ -129,13 +138,14 @@ export interface PostView {
    * True when the overlay withheld text and media because the operator's paywall covers the post (text null, media empty). /v2 never unlocks content per viewer. The paywall is disabled in production, so this is false today.
    */
   paywalled: boolean
+  source?: PostSource
 }
 /**
- * Who signed a post, resolved once on the overlay. A single function produces every AuthorView, so all clients show the same name, handle and picture for the same key. Identity is keyed on keys, never on names: `key` is the on-chain signer and `identityKey` the BRC-100 identity it resolves to. Names, handles and pictures are labels that can change between reads.
+ * Who signed a post, resolved once on the overlay. Every AuthorView comes from the same resolution, so all clients show the same name, handle and picture for the same key. Identity is keyed on keys, never on names: `key` is the on-chain signer and `identityKey` the BRC-100 identity it resolves to. Names, handles and pictures are labels that can change between reads.
  */
 export interface AuthorView {
   /**
-   * The key that signed the post, exactly as indexed (pecks.author): a base58 P2PKH address, or a 66-hex compressed public key for agent and BRC-100-native authors. Constant for the post. Use it as the profile fallback when `handle` and `identityKey` are null.
+   * The key that signed the post, exactly as indexed: a base58 P2PKH address, or a 66-hex compressed public key for agent and BRC-100-native authors. Constant for the post. Use it as the profile fallback when `handle` and `identityKey` are null.
    */
   key: string
   /**
@@ -147,7 +157,7 @@ export interface AuthorView {
    */
   identityKey: IdentityKey | null
   /**
-   * Canonical handle without the leading @, from on-chain claims only: light handle claims (identity_handles) > HandleToken > the ProfileToken's own handle field. Resolved on every read, so it can move to a new owner; the key cannot. Null when unclaimed, and always null for custodial relay keys.
+   * Canonical handle without the leading @, from on-chain claims only: light handle claims > HandleToken > the ProfileToken's own handle field. Resolved on every read, so it can move to a new owner; the key cannot. Null when unclaimed, and always null for custodial relay keys.
    */
   handle: string | null
   /**
@@ -159,7 +169,7 @@ export interface AuthorView {
    */
   nameSource: 'identity' | 'tx' | 'account' | 'external' | 'paymail' | 'key'
   /**
-   * URL of the author's own picture, ready for an <img src>. Null when the author has no usable picture; peck-native clients then show `generatedAvatarUrl`, others a monogram. Mapping from `avatarRef`, the only place it is done: uhrp://<sha256> → <UHRP base>/uhrp/<sha256>; b://<txid> → <media base>/b/<txid> (<media base>/xavatar/<txid>, a downscaling proxy, when the picture comes from an external profile); ord://<outpoint> → <media base>/ord/<outpoint>; https:// and http:// URLs pass through; data:image/* URIs pass through; peck.to's own generated /avatar/ URLs count as no picture; anything else maps to null. The media base defaults to https://peck.to.
+   * URL of the author's own picture, ready for an <img src>. Null when the author has no usable picture; peck-native clients then show `generatedAvatarUrl`, others a monogram. Mapping from `avatarRef`, the only place it is done: uhrp://<sha256> → <UHRP host>/uhrp/<sha256>; b://<txid> → <media base>/b/<txid> (<media base>/xavatar/<txid>, a downscaling proxy, when the picture comes from an external profile); ord://<outpoint> → <media base>/ord/<outpoint>; https:// and http:// URLs pass through; data:image/* URIs pass through; peck.to's own generated /avatar/ URLs count as no picture; anything else maps to null. The media base and the UHRP host are set by the overlay operator; the media base is https://peck.to by default.
    */
   avatarUrl: string | null
   /**
@@ -186,6 +196,7 @@ export interface AuthorView {
    * Set when the name or the picture came from an off-chain platform profile (nameSource or avatarSource is external). Null otherwise.
    */
   external: ExternalProfileRef | null
+  sourceHandle?: SourceHandle
 }
 /**
  * Where an off-chain name or picture came from. The binding between the account and the key lives only in that platform's database, not on-chain.
@@ -199,6 +210,37 @@ export interface ExternalProfileRef {
    * The account id on that platform, when known.
    */
   externalId: string | null
+}
+/**
+ * An alias the key holds in another protocol's own namespace (a Zanaadu user number, @14), shown next to the key and never as a peck handle. Absent when the key holds none. Carried on the authors of Zanaadu posts and on profiles; other surfaces may leave it out. Optional within v1.
+ */
+export interface SourceHandle {
+  /**
+   * Whose namespace the alias lives in: zanaadu. Open set.
+   */
+  namespace: string
+  /**
+   * The alias as the source shows it, e.g. @14.
+   */
+  value: string
+  /**
+   * The user number itself. When the key owns several, the lowest (which one the source shows is not proven).
+   */
+  number: number
+  /**
+   * What sort of alias this is: a numbered registry entry the source lets users buy and move, not a chosen name. Open set.
+   */
+  kind: 'user_number'
+  /**
+   * Every number the key owns, ascending. Present only when it owns more than one.
+   *
+   * @minItems 2
+   */
+  numbers?: [number, number, ...number[]]
+  /**
+   * Whether the overlay verified the entry against the registry's merkle root. none: the number is derived from the registry's own counter, membership is not proven.
+   */
+  membershipProof: 'none'
 }
 /**
  * One piece of binary media carried by a post's transaction.
@@ -217,7 +259,7 @@ export interface MediaItem {
    */
   filename: string | null
   /**
-   * Output index for an extra output (post_attachments). Null for the post's main B body.
+   * Output index for an extra output. Null for the post's main B body.
    */
   vout: number | null
   /**
@@ -226,7 +268,7 @@ export interface MediaItem {
   sizeBytes: number | null
 }
 /**
- * Location the author attached to the post.
+ * Where a post was placed, as the author wrote it on chain (MAP lat, lng and optionally category). The coordinates are WGS84 degrees.
  */
 export interface Geo {
   /**
@@ -237,6 +279,10 @@ export interface Geo {
    * Longitude in degrees.
    */
   lng: number
+  /**
+   * What kind of place this is, from MAP category, lowercase: peck.world writes general, business, event, alert, idea or photo. Open set; treat null and unknown values as general. Optional within v1: absent only from overlays that predate it.
+   */
+  category?: string | null
 }
 /**
  * Just enough of a reply's parent to render 'Replying to <name>'. The full parent is in ThreadView.parent.
@@ -256,7 +302,7 @@ export interface ParentStub {
  */
 export interface PostCounts {
   /**
-   * Reactions targeting this post (every row in reactions, like /v1/post; not unique reactors).
+   * Reaction records targeting this post, all of them (the same number /v1/post reports): not unique reactors.
    */
   likes: number
   /**
@@ -272,7 +318,7 @@ export interface PostCounts {
    */
   quotes: number
   /**
-   * Satoshis paid with this post as context (sum of payments.amount where context_txid is this post).
+   * Satoshis paid with this post as the payment's context, summed over every indexed payment.
    */
   tipSats: number
   /**
@@ -289,11 +335,11 @@ export interface PostCounts {
  */
 export interface Provenance {
   /**
-   * Decided in this order. custodial: signed by a known shared custodial key, or app is treechat; the signer is the app, not the person (decided first because it rests on facts the index always holds). key: the Author Identity Protocol signature was verified against the author key. unverified: no verified signature on record; a statement about the index, not proof of forgery (some apps sign over preimage variants the verifier does not check).
+   * Decided in this order. custodial: signed by a known shared custodial key, or app is treechat; the signer is the app, not the person (decided first because it rests on facts the index always holds). key: the Author Identity Protocol signature was verified against the author key. unverified: no verified signature on record; a statement about the index, not proof of forgery (some apps sign over preimage variants the verifier does not check). Posts carried by another protocol (PostView.source) are graded unverified: they carry no AIP signature, and source.commitment says what they carry instead.
    */
   grade: 'custodial' | 'key' | 'unverified'
   /**
-   * The indexer's raw AIP verification flag (pecks.aip_verified). Null when the indexer never checked.
+   * The indexer's raw AIP verification flag. Null when the indexer never checked.
    */
   aipVerified: boolean | null
   /**
@@ -302,7 +348,82 @@ export interface Provenance {
   nameInTx: string | null
 }
 /**
- * Keyset position after the last item of a page, in the ecosystem's structured-cursor form (before_<sort column>=<value>). Send every key and value back unchanged as query parameters, together with the same filters, to get the next page. The keys follow the sort columns of the chosen rank (before_ts and before_txid for rank=latest), so treat them as opaque.
+ * Present when the post is carried by another protocol than Bitcoin Schema (today: Zanaadu). Such a post has no AIP signature, so provenance.grade is unverified and aipVerified null; its integrity is source.commitment, which is what a renderer shows instead of the AIP grade. Absent for Bitcoin Schema posts. Optional within v1.
+ */
+export interface PostSource {
+  /**
+   * The protocol that carries the post: zanaadu. Open set.
+   */
+  protocol: string
+  /**
+   * The source's own verb for the transaction, untranslated: xanapost, xanareply, xanaupvote or xanadownvote for Zanaadu. Open set.
+   */
+  action: string
+  /**
+   * The integrity commitment the transaction carries. Null when none was recorded.
+   */
+  commitment: ContentCommitment | null
+  /**
+   * The platform fee the transaction paid: the one payment that is proven on-chain (a fixed amount to a fixed address). It is what the poster paid, not what anyone earned.
+   */
+  feeSats: number
+  /**
+   * How many other outputs the transaction has that cannot be attributed to anyone (change and payments look alike). Null when not recorded.
+   */
+  unattributedOutputs: number | null
+  /**
+   * Their total in satoshis. Never a tip or an earning. Null when not recorded.
+   */
+  unattributedSats: number | null
+  /**
+   * For a vote (type vote): its direction and target. Null for posts and replies.
+   */
+  vote: SourceVote | null
+}
+/**
+ * A hash the transaction commits to, and whether the overlay verified it.
+ */
+export interface ContentCommitment {
+  /**
+   * The hash function. Open set.
+   */
+  algorithm: 'sha256'
+  /**
+   * What is hashed: text, the post's full text (posts, replies); target, the target's txid (votes). Open set.
+   */
+  covers: 'text' | 'target'
+  /**
+   * The committed hash, 64 lowercase hex.
+   */
+  hash: string
+  /**
+   * True when the overlay found the commitment in the transaction and, for text, the hash of the text it serves equals it.
+   */
+  verified: boolean
+  /**
+   * Where in the transaction the commitment was found, as the source format names it. Null when not recorded.
+   */
+  location: string | null
+}
+/**
+ * A vote on another post, as the source records it.
+ */
+export interface SourceVote {
+  /**
+   * Up or down, from the topic the vote was admitted to.
+   */
+  direction: 'up' | 'down'
+  /**
+   * The post voted on (open it with GET /v2/post/{txid}). Null when the source no longer holds it.
+   */
+  targetTxid: Txid | null
+  /**
+   * The amount the vote carries in its data. Its recipient cannot be proven, so it is not a payment to anyone. Null when absent.
+   */
+  amountSats: number | null
+}
+/**
+ * Keyset position after the last item of a page, in the structured-cursor form before_<sort column>=<value>. Send every key and value back unchanged as query parameters, together with the same filters, to get the next page. The keys follow the sort columns of the chosen rank (before_ts and before_txid for rank=latest), so treat them as opaque.
  */
 export interface FeedCursor {
   [k: string]: string | number
@@ -326,7 +447,7 @@ export interface ThreadView {
   repliesTruncated: boolean
 }
 /**
- * Response of GET /v2/profile/{key|@handle}: an identity's header. `author` is baked exactly like a post author; author.key is the key the profile was looked up by (the handle owner's identity key for @handle lookups). Its posts come from GET /v2/feed?author=… (a FeedPage).
+ * Response of GET /v2/profile/{key|@handle|name}: an identity's header. The path segment is an address, a public key, an on-chain handle (with or without @), or a legacy peck.to account name (its username, paymail, or the paymail's local part); an on-chain handle wins over an account name. `author` is baked exactly like a post author; author.key is the key the profile was looked up by (the handle owner's identity key for handle lookups, the account's address for account names). Its posts come from GET /v2/feed?author=… (a FeedPage).
  */
 export interface ProfileView {
   author: AuthorView
@@ -343,6 +464,10 @@ export interface ProfileView {
    */
   keys: Key[]
   counts: ProfileCounts
+  /**
+   * Verified certificates of the identity, one entry per platform and value, ordered by platform then value. Empty when the profile has no identity key or none verify. Optional within v1: absent from overlays that predate it, and from an answer that could not verify them in time (such an answer is not cacheable).
+   */
+  certificates?: IdentityCertificate[]
 }
 /**
  * Social graph counts for a profile.
@@ -356,6 +481,35 @@ export interface ProfileCounts {
    * Follow records made by any of the profile's keys.
    */
   following: number
+  /**
+   * Indexed posts of every type (posts, replies, reposts) signed by any of the profile's keys: what GET /v2/feed?author=<keys> pages through. Counted live. Optional within v1: absent only from overlays that predate it.
+   */
+  posts?: number
+}
+/**
+ * One attribute certified for an identity (an account on a platform, an email address), with every certifier that attests it. Only certificates that were published for the identity, are issued to it, carry a valid certifier signature and are not revoked on-chain are listed. Clients decide which certifiers they trust.
+ */
+export interface IdentityCertificate {
+  /**
+   * Lowercase id of the certificate type's platform: x, discord, email, google, github, peck. Open set: unknown for a certificate type the overlay does not recognise; render unknown values generically.
+   */
+  platform: string
+  /**
+   * The certified identifier to show: the first non-empty of the certificate's userName, username, handle, name, email or sub fields, else its first non-empty field. Null when the certificate carries none. Untrusted user text.
+   */
+  value: string | null
+  /**
+   * Public keys of the certifiers whose certificates attest this platform and value, sorted, no duplicates.
+   *
+   * @minItems 1
+   */
+  certifiers: [IdentityKey, ...IdentityKey[]]
+  /**
+   * SHA-256 content hashes (UHRP addresses) of those certificate documents, sorted, so a client can fetch and verify them itself.
+   *
+   * @minItems 1
+   */
+  certificateHashes: [string, ...string[]]
 }
 /**
  * Response of POST /v2/posts: many posts by txid in one call.
@@ -424,6 +578,95 @@ export interface AuthorViewerState {
    * The viewer has a mute record for this author.
    */
   muted: boolean
+}
+/**
+ * The apps that have written posts, most posts first (GET /v2/apps): what an app filter chip row needs. Counts are materialized, not live: they are as old as `asOf`, refreshed in the background about every 5 minutes. Counts cover exactly the posts GET /v2/feed serves and can filter on.
+ */
+export interface AppList {
+  /**
+   * Ordered by count descending, then by app name. Apps with no posts of the requested types are absent.
+   */
+  apps: AppCount[]
+  /**
+   * When these counts were taken, ISO 8601 in UTC with a trailing Z.
+   */
+  asOf: string
+}
+/**
+ * How many posts one MAP app has written.
+ */
+export interface AppCount {
+  /**
+   * The MAP app name as indexed (peck.to, twetch, treechat, ...), exactly the value GET /v2/feed?app= filters on.
+   */
+  app: string
+  /**
+   * Posts of the requested types written by this app. As of AppList.asOf, not live.
+   */
+  count: number
+}
+/**
+ * Response of GET /v2/post/{txid}/reactions?kind=like|repost: who liked or reposted a post, newest first, a page at a time (limit 1-100, default 50). Every like record and every repost is listed, including reactors without a usable key, so the pages add up to PostCounts.likes and PostCounts.reposts. Quotes are posts with their own text and are not listed here. An unknown or not yet indexed txid is an empty page, not an error.
+ */
+export interface ReactionPage {
+  /**
+   * The reactions on this page, newest first.
+   */
+  items: Reaction[]
+  /**
+   * Cursor for the next page, in the same structured form as FeedPage.next (before_ts with before_actor for likes, with before_txid for reposts); send it back with the same txid and kind. Null when this is the last page.
+   */
+  next: FeedCursor | null
+}
+/**
+ * One like or repost of a post, and who made it.
+ */
+export interface Reaction {
+  /**
+   * like: a like record of the post. repost: a post of type repost that references it. Open set: render an unknown kind generically.
+   */
+  kind: 'like' | 'repost'
+  /**
+   * The transaction that made the reaction: the like, or the repost post (open it with GET /v2/post/{txid}). Null for likes indexed without their transaction id.
+   */
+  txid: Txid | null
+  /**
+   * When the reaction was made (the indexed timestamp), ISO 8601 in UTC with a trailing Z.
+   */
+  createdAt: string
+  /**
+   * The like's emoji as written on-chain (twetch upvotes arrive as ⬆︎). Null for reposts and for likes without one. Untrusted user text.
+   */
+  emoji: string | null
+  /**
+   * Who reacted, exactly as indexed. Usually a key (a P2PKH address or a public key); some imported likes carry only a placeholder such as unknown or scripthash:…, and then `author` is null.
+   */
+  actorKey: string
+  /**
+   * Who reacted, baked exactly like a post author, so the name, handle and picture match that person's posts. For a repost it carries the name the repost transaction gives (custodial relays name their users there). Null when actorKey is not a key.
+   */
+  author: AuthorView | null
+}
+/**
+ * Response of GET /v2/stats: the site totals a sidebar shows. Both numbers are the database planner's row estimates, not counts: close to the truth on a large table, updated as the database re-analyzes it, and never exact to the post. Render them rounded (2.6M posts).
+ */
+export interface SiteStats {
+  /**
+   * Indexed posts of every type (posts, replies, reposts), estimated. 0 on a database never analyzed.
+   */
+  posts: number
+  /**
+   * Legacy peck.to accounts, estimated. On-chain identities without an account are not counted.
+   */
+  accounts: number
+  /**
+   * Always true: the numbers are estimates. Present so a client can never mistake them for counts.
+   */
+  estimated: true
+  /**
+   * When the estimates were read, ISO 8601 in UTC with a trailing Z.
+   */
+  asOf: string
 }
 /**
  * Body of every non-2xx /v2 response.

@@ -9,3 +9,9 @@
 export * from './v1.js'
 export * from './v2.js'
 export type * from './peck-view/types.js'
+// The contract's `SourceHandle` (camelCase, on `AuthorView`) and the /v1 row's
+// `SourceHandle` (snake_case, on `PeckRow`) share a name. The package has
+// always exported the /v1 one under it, so it keeps the name; the contract's
+// is exported as `PeckViewSourceHandle`.
+export type { SourceHandle } from './v1.js'
+export type { SourceHandle as PeckViewSourceHandle } from './peck-view/types.js'

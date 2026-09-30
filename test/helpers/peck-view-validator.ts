@@ -23,7 +23,7 @@ export const PECK_VIEW_FIXTURES = resolve(import.meta.dirname, '../fixtures/peck
 
 export type PeckViewTypeName =
   | 'PeckView' | 'AuthorView' | 'PostView' | 'ThreadView' | 'FeedPage' | 'FeedCursor' | 'PostBatch'
-  | 'ProfileView' | 'ViewerState' | 'ErrorResponse'
+  | 'ProfileView' | 'ViewerState' | 'AppList' | 'ReactionPage' | 'SiteStats' | 'ErrorResponse'
 
 const schema = JSON.parse(readFileSync(PECK_VIEW_SCHEMA_PATH, 'utf8')) as { $id: string }
 // strict: unknown keywords or ambiguous types are schema bugs, not warnings.

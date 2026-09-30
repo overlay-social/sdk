@@ -22,6 +22,31 @@
   ],
   "counts": {
     "followers": 12,
-    "following": 3
-  }
+    "following": 3,
+    "posts": 148
+  },
+  "certificates": [
+    {
+      "platform": "github",
+      "value": "ada-lovelace",
+      "certifiers": [
+        "030241bb51b8ace248aa7440d8ccbbd09a93103aff8c89cd7905c134f765037fe2"
+      ],
+      "certificateHashes": [
+        "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1"
+      ]
+    },
+    {
+      "platform": "x",
+      "value": "ada",
+      "certifiers": [
+        "02cf6cdf466951d8dfc9e7c9367511d0007ed6fba35ed42d425cc412fd6cfd4a17",
+        "030241bb51b8ace248aa7440d8ccbbd09a93103aff8c89cd7905c134f765037fe2"
+      ],
+      "certificateHashes": [
+        "c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+        "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+      ]
+    }
+  ]
 }
