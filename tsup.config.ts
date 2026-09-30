@@ -7,6 +7,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     read: 'src/read/index.ts',
+    identity: 'src/identity/index.ts',
     schema: 'src/schema/index.ts',
     wallet: 'src/wallet/index.ts',
     sanitize: 'src/sanitize/index.ts',
