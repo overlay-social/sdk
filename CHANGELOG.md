@@ -13,6 +13,12 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `npm run verify`, an exports-map check (`npm run check:exports`), and a CI
   workflow running lint, typecheck, tests and build on Node 20 and 22.
 - README section describing the planned modules.
+- `@overlay-social/sdk/peckos`: typed client for apps that run inside Peck OS
+  (`PeckOS.detect()`, wallet access through the desktop, and the `open`,
+  `notify`, `setTitle` and `setBadge` calls). Same wire protocol as the
+  plain-script client it replaces, with unit tests for the message protocol.
+- `@overlay-social/sdk/peckos/browser`: the same module as one self-contained
+  ES module (`dist/peckos.browser.js`) for pages without a build step.
 
 ### Changed
 - Build is configured in `tsup.config.ts` with one entry per subpath.
