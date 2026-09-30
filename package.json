@@ -33,6 +33,16 @@
       "types": "./dist/wallet.d.ts",
       "import": "./dist/wallet.js"
     },
+    "./sanitize": {
+      "types": "./dist/sanitize.d.ts",
+      "browser": "./dist/sanitize.web.js",
+      "import": "./dist/sanitize.js"
+    },
+    "./sanitize/browser": {
+      "types": "./dist/sanitize.d.ts",
+      "import": "./dist/sanitize.browser.js",
+      "default": "./dist/sanitize.browser.js"
+    },
     "./peckos": {
       "types": "./dist/peckos.d.ts",
       "import": "./dist/peckos.js"
@@ -60,6 +70,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "check:exports": "node scripts/check-exports.mjs",
+    "check:sanitize-browser": "node scripts/check-sanitize-browser.mjs",
     "sync:peck-view": "node scripts/sync-peck-view.mjs",
     "check:peck-view": "node scripts/sync-peck-view.mjs --check",
     "verify": "npm run lint && npm run typecheck && npm run check:peck-view && npm run test && npm run build && npm run check:exports",
@@ -75,18 +86,30 @@
     "metanet"
   ],
   "dependencies": {
-    "@bsv/sdk": "^2.8.7"
+    "@bsv/sdk": "^2.8.7",
+    "dompurify": "^3.4.16",
+    "marked": "^15.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^20.19.43",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "eslint": "^9.39.5",
+    "jsdom": "^29.1.1",
     "json-schema-to-typescript": "^16.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.5",
     "typescript-eslint": "^8.71.0",
     "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "jsdom": ">=26"
+  },
+  "peerDependenciesMeta": {
+    "jsdom": {
+      "optional": true
+    }
   }
 }

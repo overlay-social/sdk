@@ -43,6 +43,19 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   error normalizer (`WalletRequestError`, `classifyWalletError`,
   `normalizeWalletError`) maps every failure to `cancelled`, `unavailable`,
   `insufficient_funds`, `timeout` or `unknown`.
+- `@overlay-social/sdk/sanitize`: `renderMarkdown()` (GFM markdown to safe
+  HTML), `sanitizeHtml()` and `sanitizeEmbedHtml()`, one DOMPurify profile for
+  chain content: `http`, `https` and `mailto` links only, `rel="noopener
+  noreferrer nofollow ugc"`, no `style`, event handlers, frames or SVG, ids
+  prefixed against DOM clobbering, images and media lazy and without a
+  referrer. It ports the hardened profile of the peck.to web client. Works in
+  the browser (page DOM), on a server (jsdom, an optional peer dependency) or
+  with any window through `createSanitizer(window)`; fails closed to escaped
+  text without a DOM. `sanitize/browser` is a self-contained single-file
+  build. Tests run an XSS corpus of over a hundred payloads; `npm run
+  check:sanitize-browser` runs it in a real headless Chrome.
+- Dependencies: `dompurify` and `marked`; `jsdom` as an optional peer
+  dependency.
 - Contract tests: every contract example validates against the schema and
   round-trips through the client; a live smoke test runs when
   `PECK_VIEW_LIVE` is set.

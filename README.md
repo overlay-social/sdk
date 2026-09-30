@@ -208,7 +208,7 @@ separate ESM entry point with its own type declarations).
 | `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs, signed through a BRC-100 wallet | available |
 | `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | available |
 | `@overlay-social/sdk/identity` | Render-ready helpers for identity fields such as avatar references and display names | planned |
-| `@overlay-social/sdk/sanitize` | One HTML sanitising profile for user-generated content | planned |
+| `@overlay-social/sdk/sanitize` | One HTML sanitising profile for chain content: markdown to safe HTML for browsers and server rendering | available |
 | `@overlay-social/sdk/dm` | BRC-42 direct-message envelopes and a message-box client | planned |
 | `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | available |
 
@@ -264,6 +264,74 @@ MAP sections, each separator as the byte `0x7c`, then the AIP prefix, `BRC77`
 and the key. Length prefixes and the signature push are not included. The
 digest is one SHA-256, and the script carries the DER signature in base64.
 `verifyAip(script)` checks it. Details are in `src/schema/aip.ts`.
+
+## Sanitising chain content (`/sanitize`)
+
+Post text is written by anyone and can never be deleted from the chain, so it
+must be cleaned every time it is shown. One profile does that, for the browser
+and for server-side rendering:
+
+```ts
+import { renderMarkdown, sanitizeHtml } from '@overlay-social/sdk/sanitize'
+
+el.innerHTML = renderMarkdown(post.text) // markdown (GFM) to safe HTML
+el.innerHTML = sanitizeHtml(untrustedHtml) // already have HTML
+renderMarkdown(post.text, { mentions: (handle) => `/u/${handle}` }) // link @handles
+```
+
+Both are built on DOMPurify (and marked for the markdown) and are safe to put
+in `innerHTML`. They return strings, and never run or load anything while
+cleaning.
+
+**What survives.** Text, headings, lists, quotes, code (with its `language-*`
+class), tables, links, images, audio and video. **What does not:** scripts,
+SVG and MathML, forms and controls (a task list's disabled checkboxes stay),
+`iframe`, `object`, `embed`, `style`, `link`, `meta`, `base`, `template`,
+event handlers, inline `style`, `data-*`, `srcdoc`, `action` and `formaction`.
+`id` and `name` are prefixed with `user-content-`, and only `language-*` class
+tokens are kept, so content cannot borrow an app's own CSS classes or clobber
+its globals.
+
+**Links.** Only `http`, `https` and `mailto` URLs and relative URLs are kept:
+`javascript:`, `vbscript:`, `tel:`, `ftp:` and the rest are dropped. Every link
+gets `rel="noopener noreferrer nofollow ugc"`. `target` never comes from the
+content: an absolute `http(s)` link gets `target="_blank"` (pass
+`externalLinkTarget: null` for none), everything else has none.
+
+**Media.** Images, audio and video may load from any `http(s)` host. They get
+`loading="lazy"` and `referrerpolicy="no-referrer"`, and `autoplay` is removed.
+`data:` URLs are kept on media elements only (`img`, `video`, `audio`,
+`source`, `track`), where they are inert, and never on links. Frames and
+embeds are removed; an app that wants rich cards builds its own and runs
+`sanitizeEmbedHtml()` over the result, a second pass that additionally allows
+`data-txid`, `data-oembed-url`, `data-og-url`, `data-ord-txid` and
+`data-ord-origin`, `peck-embed*` classes and the YouTube no-cookie player
+iframe (any other iframe is removed).
+
+**Fail closed.** With no DOM available the functions return the text escaped,
+never the markup. `isSanitizerAvailable()` tells you which case you are in.
+
+**Server-side rendering.** DOMPurify needs a DOM. In Node the entry point
+creates a [jsdom](https://github.com/jsdom/jsdom) window on first use, so
+install `jsdom` (an optional peer dependency, 26 or later) next to the SDK.
+Or bring your own window (linkedom, happy-dom, an existing jsdom):
+
+```ts
+import { createSanitizer } from '@overlay-social/sdk/sanitize'
+
+const { renderMarkdown } = createSanitizer(window) // any DOM window
+```
+
+Bundlers and browsers resolve the `browser` export condition to a build that
+uses the page's own DOM and never touches jsdom. For a page without a build
+step, `@overlay-social/sdk/sanitize/browser` is one self-contained ES module
+(`dist/sanitize.browser.js`, DOMPurify and marked included, about 71 KB, 25 KB
+gzipped).
+
+The tests run a corpus of XSS payloads (the classic vectors, mutation-XSS
+patterns, markdown-specific forms) through every entry point.
+`npm run check:sanitize-browser` runs the same corpus through the single-file
+build in a real headless Chrome and checks that nothing executes.
 
 ## Wallet (`/wallet`)
 
