@@ -1,0 +1,60 @@
+{
+  "items": [
+    {
+      "kind": "like",
+      "txid": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "createdAt": "2026-09-30T09:12:44Z",
+      "emoji": "❤️",
+      "actorKey": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+      "author": {
+        "key": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "address": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "identityKey": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "handle": "ada",
+        "displayName": "Ada",
+        "nameSource": "identity",
+        "avatarUrl": "https://peck.bio/uhrp/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarRef": "uhrp://a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarSource": "identity",
+        "generatedAvatarUrl": "https://peck.to/avatar/1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1?seed=1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      }
+    },
+    {
+      "kind": "like",
+      "txid": null,
+      "createdAt": "2026-09-29T21:03:10.25Z",
+      "emoji": "⬆︎",
+      "actorKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+      "author": {
+        "key": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "handle": null,
+        "displayName": "027eaf…9ad0",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      }
+    },
+    {
+      "kind": "like",
+      "txid": null,
+      "createdAt": "2020-03-02T11:00:00Z",
+      "emoji": null,
+      "actorKey": "unknown",
+      "author": null
+    }
+  ],
+  "next": {
+    "before_ts": "2020-03-02T11:00:00Z",
+    "before_actor": "unknown"
+  }
+}

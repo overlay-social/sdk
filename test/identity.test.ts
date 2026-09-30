@@ -416,8 +416,12 @@ describe('peck-view/v1 contract examples', () => {
       expect(avatarSrc(author)).toBe(author.avatarUrl ?? author.generatedAvatarUrl)
       expect(isCustodial(author)).toBe(author.custodialRelay !== null)
       expect(isExternal(author)).toBe(author.external !== null)
-      // The whole view, from the records that would have produced it.
-      expect(bakeAuthor(sourcesFor(author), CFG)).toEqual(author)
+      // The whole view, from the records that would have produced it. The
+      // `sourceHandle` alias is read from another protocol's own registry, not
+      // derived by the naming rules, so `bakeAuthor` does not produce it.
+      const expected: AuthorView = { ...author }
+      delete expected.sourceHandle
+      expect(bakeAuthor(sourcesFor(author), CFG)).toEqual(expected)
     })
   }
 })

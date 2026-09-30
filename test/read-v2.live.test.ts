@@ -54,6 +54,51 @@ describe.skipIf(!live)('live /v2 smoke test', () => {
     expect(page.next).toBeNull()
   }, 30_000)
 
+  it('stats and apps', async () => {
+    const stats = await client.stats()
+    expect(peckViewErrors('SiteStats', stats)).toEqual([])
+    const apps = await client.apps()
+    expect(peckViewErrors('AppList', apps)).toEqual([])
+    expect(apps.apps.length).toBeGreaterThan(0)
+  }, 30_000)
+
+  it('reactions of a post, paged', async () => {
+    const page = await client.feed({ limit: 50, rank: 'top' })
+    const liked = page.items.find((p) => p.counts.likes > 0)
+    if (!liked) return
+    const first = await client.reactions(liked.txid, { limit: 2 })
+    expect(peckViewErrors('ReactionPage', first)).toEqual([])
+    expect(first.items.length).toBeGreaterThan(0)
+    if (first.next) {
+      const second = await client.reactions(liked.txid, { limit: 2, cursor: first.next })
+      expect(peckViewErrors('ReactionPage', second)).toEqual([])
+    }
+    const reposts = await client.reactions(liked.txid, { kind: 'repost', limit: 2 })
+    expect(peckViewErrors('ReactionPage', reposts)).toEqual([])
+  }, 60_000)
+
+  it('geo filters: a box and a radius around the same point find located posts', async () => {
+    const located = await client.feed({ hasGeo: true, limit: 5 })
+    expect(peckViewErrors('FeedPage', located)).toEqual([])
+    const geo = located.items.find((p) => p.geo)?.geo
+    if (!geo) return
+    // Latitude first: a box a degree around the pin, and a 50 km circle.
+    const box = await client.feed({
+      bbox: { minLat: geo.lat - 1, minLng: geo.lng - 1, maxLat: geo.lat + 1, maxLng: geo.lng + 1 },
+      limit: 20,
+    })
+    expect(peckViewErrors('FeedPage', box)).toEqual([])
+    expect(box.items.length).toBeGreaterThan(0)
+    for (const p of box.items) {
+      expect(p.geo).toBeTruthy()
+      expect(Math.abs((p.geo?.lat ?? 999) - geo.lat)).toBeLessThanOrEqual(1)
+      expect(Math.abs((p.geo?.lng ?? 999) - geo.lng)).toBeLessThanOrEqual(1)
+    }
+    const near = await client.feed({ near: { lat: geo.lat, lng: geo.lng, radiusKm: 50 }, limit: 20 })
+    expect(peckViewErrors('FeedPage', near)).toEqual([])
+    expect(near.items.length).toBeGreaterThan(0)
+  }, 60_000)
+
   it('a malformed txid is a typed bad_request', async () => {
     await expect(client.post('zz')).rejects.toMatchObject({ code: 'bad_request', status: 400 })
   }, 30_000)

@@ -1,0 +1,9 @@
+{
+  "apps": [
+    { "app": "twetch", "count": 1204331 },
+    { "app": "peck.to", "count": 418902 },
+    { "app": "treechat", "count": 190417 },
+    { "app": "peck.agents", "count": 2211 }
+  ],
+  "asOf": "2026-09-30T10:05:00Z"
+}

@@ -17,11 +17,15 @@
  *    unchanged (an AbortError by default), exactly like `fetch`.
  */
 import type {
+  AppList,
   ErrorResponse,
   FeedCursor,
   FeedPage,
   PostBatch,
   ProfileView,
+  Reaction,
+  ReactionPage,
+  SiteStats,
   ThreadView,
   ViewerState,
 } from './peck-view/types.js'
@@ -96,6 +100,26 @@ export type TimeInput = Date | string | number
 /** Feed ordering. `top` and `discussed` cover the last 7 days unless `since` is set. */
 export type FeedRank = 'latest' | 'top' | 'discussed'
 
+/**
+ * A rectangle on the map, **latitude first**: `minLat`, `minLng`, `maxLat`,
+ * `maxLng` (the order the overlay reads). `minLng` greater than `maxLng` means
+ * the box crosses the antimeridian (`minLng: 170, maxLng: -170`).
+ */
+export interface GeoBox {
+  minLat: number
+  minLng: number
+  maxLat: number
+  maxLng: number
+}
+
+/** Everything within `radiusKm` of a point, measured along the great circle. */
+export interface GeoNear {
+  lat: number
+  lng: number
+  /** Greater than 0; at most half the Earth's circumference (about 20 016 km). */
+  radiusKm: number
+}
+
 /** Filters for `feed()`. Every field is optional; the overlay's operator filter always applies. */
 export interface FeedQuery {
   /** Page size, 1–100. Overlay default: 20. */
@@ -134,6 +158,16 @@ export interface FeedQuery {
   /** Lens ids to apply. */
   lens?: string[]
   /**
+   * Only posts with a location (`PostView.geo` is set). `bbox` and `near` imply
+   * it. A location filter combines with every other filter, every rank and
+   * paging.
+   */
+  hasGeo?: boolean
+  /** Only posts inside this box. Given together with `near`, both apply. */
+  bbox?: GeoBox
+  /** Only posts within this distance of a point. Given together with `bbox`, both apply. */
+  near?: GeoNear
+  /**
    * Continue after a previous page: pass that page's `next` unchanged, with the
    * same filters. Null or absent starts at the top.
    */
@@ -160,6 +194,30 @@ export interface ViewerStateQuery {
   txids?: string[]
   /** Author keys to report following/blocked/muted for. */
   authors?: string[]
+}
+
+/** Which reactions `reactions()` lists. */
+export type ReactionKind = Reaction['kind']
+
+export interface ReactionsQuery {
+  /** `like` lists likes, `repost` lists the posts that repost it. Overlay default: `like`. */
+  kind?: ReactionKind
+  /** 1–100. Overlay default: 50. */
+  limit?: number
+  /**
+   * Continue after a previous page: pass that page's `next` unchanged, with the
+   * same txid and `kind`. Null or absent starts at the newest.
+   */
+  cursor?: FeedCursor | null
+}
+
+/** Query for `apps()`. */
+export interface AppsQuery {
+  /**
+   * Count only these MAP types. Overlay default: the content types (post,
+   * reply, repost), which leaves out likes and follows.
+   */
+  type?: string | string[]
 }
 
 /** Per-call options. */
@@ -204,6 +262,16 @@ function manyParams(one: string, many: string, v: string | string[] | undefined)
   return { [one]: csv(v) }
 }
 
+/** `bbox=minLat,minLng,maxLat,maxLng`: latitude first, unlike GeoJSON's [west, south, east, north]. */
+function bboxParam(b: GeoBox | undefined): string | undefined {
+  return b ? [b.minLat, b.minLng, b.maxLat, b.maxLng].join(',') : undefined
+}
+
+/** `near=lat,lng,radiusKm`. */
+function nearParam(n: GeoNear | undefined): string | undefined {
+  return n ? [n.lat, n.lng, n.radiusKm].join(',') : undefined
+}
+
 /** The query string for `GET /v2/feed`. Exported for tests and for callers that build their own URLs. */
 export function feedSearchParams(query: FeedQuery = {}): URLSearchParams {
   const p: Params = {
@@ -225,6 +293,9 @@ export function feedSearchParams(query: FeedQuery = {}): URLSearchParams {
     hide_blocked_by: query.hideBlockedBy,
     include_muted: query.includeMuted === false ? '0' : undefined,
     lens: csv(query.lens),
+    has_geo: query.hasGeo === true ? '1' : undefined,
+    bbox: bboxParam(query.bbox),
+    near: nearParam(query.near),
   }
   const qs = toSearchParams(p)
   // The cursor's keys follow the rank's sort columns; send them back as given.
@@ -242,6 +313,22 @@ export function searchSearchParams(query: SearchQuery): URLSearchParams {
     ...manyParams('type', 'types', query.type),
     tag: query.tag,
   })
+}
+
+/** The query string for `GET /v2/post/:txid/reactions`. */
+export function reactionsSearchParams(query: ReactionsQuery = {}): URLSearchParams {
+  const qs = toSearchParams({
+    kind: query.kind,
+    limit: query.limit === undefined ? undefined : String(query.limit),
+  })
+  // The cursor's keys follow the kind (before_actor for likes, before_txid for reposts).
+  for (const [k, v] of Object.entries(query.cursor ?? {})) qs.set(k, String(v))
+  return qs
+}
+
+/** The query string for `GET /v2/apps`. */
+export function appsSearchParams(query: AppsQuery = {}): URLSearchParams {
+  return toSearchParams(manyParams('type', 'types', query.type))
 }
 
 function toSearchParams(p: Params): URLSearchParams {
@@ -266,6 +353,11 @@ const isPostBatch = (b: unknown): b is PostBatch =>
   isObject(b) && Array.isArray(b.posts) && Array.isArray(b.missing)
 const isViewerState = (b: unknown): b is ViewerState =>
   isObject(b) && isObject(b.posts) && isObject(b.authors) && Array.isArray(b.keys)
+const isReactionPage = (b: unknown): b is ReactionPage =>
+  isObject(b) && Array.isArray(b.items) && (b.next === null || isObject(b.next))
+const isAppList = (b: unknown): b is AppList => isObject(b) && Array.isArray(b.apps)
+const isSiteStats = (b: unknown): b is SiteStats =>
+  isObject(b) && typeof b.posts === 'number' && typeof b.accounts === 'number'
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -407,6 +499,40 @@ export class ReadClient {
     const q = typeof query === 'string' ? { q: query } : query
     if (!q.q || !q.q.trim()) return Promise.reject(new ReadError('bad_request', 0, '/v2/search', 'q is required'))
     return this.request('GET', `/v2/search?${searchSearchParams(q).toString()}`, undefined, isFeedPage, opts)
+  }
+
+  /**
+   * `GET /v2/post/:txid/reactions`: who liked (or, with `kind: 'repost'`,
+   * reposted) a post, newest first, a page at a time. Page on with
+   * `query.cursor = page.next`. A txid the overlay has not indexed is an empty
+   * page, not `not_found`. Quotes carry their own text and are posts, so they
+   * are not listed here.
+   */
+  reactions(txid: string, query: ReactionsQuery = {}, opts?: ReadRequestOptions): Promise<ReactionPage> {
+    const t = typeof txid === 'string' ? txid.trim().toLowerCase() : ''
+    if (!TXID_RE.test(t)) {
+      return Promise.reject(new ReadError('bad_request', 0, '/v2/post/reactions', `not a txid: ${JSON.stringify(txid).slice(0, 80)}`))
+    }
+    const qs = reactionsSearchParams(query).toString()
+    return this.request('GET', `/v2/post/${t}/reactions${qs ? `?${qs}` : ''}`, undefined, isReactionPage, opts)
+  }
+
+  /**
+   * `GET /v2/apps`: the apps that have written posts, most posts first, for an
+   * app filter row. Counts are refreshed in the background (see `asOf`).
+   */
+  apps(query: AppsQuery = {}, opts?: ReadRequestOptions): Promise<AppList> {
+    const qs = appsSearchParams(query).toString()
+    return this.request('GET', `/v2/apps${qs ? `?${qs}` : ''}`, undefined, isAppList, opts)
+  }
+
+  /**
+   * `GET /v2/stats`: the site totals a sidebar shows. Both numbers are the
+   * database's row estimates, not counts (`estimated` is always true): render
+   * them rounded.
+   */
+  stats(opts?: ReadRequestOptions): Promise<SiteStats> {
+    return this.request('GET', '/v2/stats', undefined, isSiteStats, opts)
   }
 
   // -- transport ---------------------------------------------------

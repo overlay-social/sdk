@@ -52,10 +52,42 @@ per-viewer read is `viewerState()`.
 | `posts(txids)` | `POST /v2/posts` | `PostBatch` (`posts` in request order, `missing`); chunked at 100 |
 | `viewerState({ viewer, txids?, authors? })` | `POST /v2/viewer/state` | `ViewerState` (liked/reposted, following/blocked/muted); chunked at 200 |
 | `search(q \| { q, ... })` | `GET /v2/search` | `FeedPage` of best matches (`next` is always `null`) |
+| `reactions(txid, { kind?, limit?, cursor? })` | `GET /v2/post/:txid/reactions` | `ReactionPage`: who liked (or, with `kind: 'repost'`, reposted) a post, newest first |
+| `apps({ type? })` | `GET /v2/apps` | `AppList`: posts per app, most first |
+| `stats()` | `GET /v2/stats` | `SiteStats`: site totals (`posts`, `accounts`), row estimates |
 
 **Paging.** `next` is a structured cursor. Pass it back unchanged as
 `cursor`, with the same filters, to get the following page; its keys depend on
 the `rank`, so treat it as opaque.
+
+**Locations.** A post with a location has `geo` (`lat`, `lng`, `category`).
+`feed()` filters on it:
+
+```ts
+// Everything with a location.
+await overlay.feed({ hasGeo: true })
+// A rectangle: latitude first, then longitude. `minLng` greater than `maxLng`
+// means the box crosses the antimeridian.
+await overlay.feed({ bbox: { minLat: 59.8, minLng: 10.6, maxLat: 60.0, maxLng: 10.9 } })
+// A circle, in kilometres along the great circle.
+await overlay.feed({ near: { lat: 59.9139, lng: 10.7522, radiusKm: 5 }, type: 'post' })
+```
+
+`bbox` and `near` imply `hasGeo`, and combine with every other filter, every
+`rank` and `cursor`.
+
+**Reactions.** `reactions(txid)` pages through the likes of a post; the pages
+add up to `post.counts.likes`. A like from a key the overlay cannot resolve has
+`author: null` and the raw value in `actorKey`.
+
+```ts
+let page = await overlay.reactions(txid, { limit: 50 })
+const likers = [...page.items]
+while (page.next) {
+  page = await overlay.reactions(txid, { limit: 50, cursor: page.next })
+  likers.push(...page.items)
+}
+```
 
 **Errors.** Every failure throws a `ReadError` with a stable `code` and the
 HTTP `status` (0 when there was no response):
@@ -142,7 +174,7 @@ never throws.
 | `getNotifications(address, params?)` | `GET /v1/notifications/:address` | `NotificationItem[]` (`[]` on error) |
 | `getFollows(address)` | `GET /v1/follows/:address` | `FollowsResponse` |
 | `getBlocks(address, kind?)` | `GET /v1/blocks/:address` | `BlockEntry[]` (outgoing only, by design) |
-| `getFeed(params)` | `GET /v1/feed` (incl. `near`/`bbox` geo) | `FeedResponse` (throws on upstream failure) |
+| `getFeed(params)` | `GET /v1/feed` (incl. `near`/`bbox` geo; `bbox` is `[west, south, east, north]`) | `FeedResponse` (throws on upstream failure) |
 | `getPost(txid)` | `GET /v1/post/:txid` | `PeckRow \| null` |
 | `getThread(txid)` | `GET /v1/thread/:txid` | `{post, replies}` |
 | `getState()` | `GET /state` | `OverlayState` (topics + on-chain anchors) |

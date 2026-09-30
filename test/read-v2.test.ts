@@ -6,6 +6,8 @@ import {
   createReadClient,
   feedSearchParams,
   isReadError,
+  appsSearchParams,
+  reactionsSearchParams,
   type FeedPage,
   type PostView,
   type ViewerState,
@@ -108,6 +110,134 @@ describe('feed()', () => {
     expect(qs.get('before_score2')).toBe('3')
     expect(qs.get('before_ts')).toBe('2026-09-30T08:56:31Z')
     expect(qs.get('before_txid')).toBe(txid(7))
+  })
+})
+
+describe('feed() geo filters', () => {
+  it('sends the box latitude first, as minLat,minLng,maxLat,maxLng', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_PAGE))
+    // Oslo: latitude about 59.9, longitude about 10.7.
+    await client.feed({ bbox: { minLat: 59.8, minLng: 10.6, maxLat: 60.0, maxLng: 10.9 } })
+    const u = calls[0]!.url
+    expect(u.pathname).toBe('/v2/feed')
+    expect(u.searchParams.get('bbox')).toBe('59.8,10.6,60,10.9')
+    expect(u.searchParams.has('has_geo')).toBe(false)
+  })
+
+  it('keeps a box across the antimeridian as given (minLng greater than maxLng)', () => {
+    const qs = feedSearchParams({ bbox: { minLat: -20, minLng: 170, maxLat: -10, maxLng: -170 } })
+    expect(qs.get('bbox')).toBe('-20,170,-10,-170')
+  })
+
+  it('sends near as lat,lng,radiusKm', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_PAGE))
+    await client.feed({ near: { lat: 59.9139, lng: 10.7522, radiusKm: 2.5 } })
+    expect(calls[0]!.url.searchParams.get('near')).toBe('59.9139,10.7522,2.5')
+    expect(calls[0]!.url.searchParams.has('radius_km')).toBe(false)
+  })
+
+  it('sends has_geo=1 only when true', () => {
+    expect(feedSearchParams({ hasGeo: true }).get('has_geo')).toBe('1')
+    expect(feedSearchParams({ hasGeo: false }).has('has_geo')).toBe(false)
+    expect(feedSearchParams({}).has('has_geo')).toBe(false)
+  })
+
+  it('combines with the other filters and with paging', () => {
+    const cursor = { before_ts: '2026-09-30T08:56:31Z', before_txid: txid(9) }
+    const qs = feedSearchParams({
+      app: 'peck.world',
+      type: ['post', 'reply'],
+      rank: 'latest',
+      hasGeo: true,
+      near: { lat: 1, lng: 2, radiusKm: 3 },
+      bbox: { minLat: 0, minLng: 1, maxLat: 2, maxLng: 3 },
+      cursor,
+    })
+    expect(Object.fromEntries(qs)).toEqual({
+      rank: 'latest',
+      app: 'peck.world',
+      types: 'post,reply',
+      has_geo: '1',
+      bbox: '0,1,2,3',
+      near: '1,2,3',
+      ...cursor,
+    })
+  })
+})
+
+describe('reactions()', () => {
+  const REACTIONS: FeedPage = { items: [], next: null }
+
+  it('lists likes by default, on the post path', async () => {
+    const { client, calls } = clientWith(() => json(REACTIONS))
+    await client.reactions(txid(1))
+    const u = calls[0]!.url
+    expect(u.pathname).toBe(`/v2/post/${txid(1)}/reactions`)
+    expect(u.search).toBe('')
+    expect(calls[0]!.method).toBe('GET')
+  })
+
+  it('maps kind, limit and the cursor onto the wire names', async () => {
+    const { client, calls } = clientWith(() => json(REACTIONS))
+    await client.reactions(txid(2), {
+      kind: 'repost',
+      limit: 25,
+      cursor: { before_ts: '2026-09-30T08:56:31.25Z', before_txid: txid(3) },
+    })
+    expect(Object.fromEntries(calls[0]!.url.searchParams)).toEqual({
+      kind: 'repost',
+      limit: '25',
+      before_ts: '2026-09-30T08:56:31.25Z',
+      before_txid: txid(3),
+    })
+  })
+
+  it('sends a like cursor back unchanged, even a placeholder actor', () => {
+    const qs = reactionsSearchParams({ kind: 'like', cursor: { before_ts: '2020-03-02T11:00:00Z', before_actor: 'unknown' } })
+    expect(qs.toString()).toBe('kind=like&before_ts=2020-03-02T11%3A00%3A00Z&before_actor=unknown')
+    expect(reactionsSearchParams({ cursor: null }).toString()).toBe('')
+  })
+
+  it('normalises the txid and rejects a malformed one without a request', async () => {
+    const { client, calls } = clientWith(() => json(REACTIONS))
+    await client.reactions(`  ${txid(255).toUpperCase()} `)
+    expect(calls[0]!.url.pathname).toBe(`/v2/post/${txid(255)}/reactions`)
+    await expect(client.reactions('nope')).rejects.toMatchObject({ code: 'bad_request', status: 0 })
+    await expect(client.reactions('')).rejects.toMatchObject({ code: 'bad_request', status: 0 })
+    expect(calls).toHaveLength(1)
+  })
+
+  it('rejects a body that is not a reaction page', async () => {
+    const { client } = clientWith(() => json({ posts: [], missing: [] }))
+    await expect(client.reactions(txid(1))).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+})
+
+describe('stats() and apps()', () => {
+  it('stats() reads /v2/stats', async () => {
+    const { client, calls } = clientWith(() => json({ posts: 10, accounts: 2, estimated: true, asOf: '2026-09-30T13:05:00Z' }))
+    expect(await client.stats()).toMatchObject({ posts: 10, accounts: 2, estimated: true })
+    expect(calls[0]!.url.pathname).toBe('/v2/stats')
+    expect(calls[0]!.url.search).toBe('')
+  })
+
+  it('stats() rejects a body that is not SiteStats', async () => {
+    const { client } = clientWith(() => json({ status: 'ok' }))
+    await expect(client.stats()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+
+  it('apps() sends one type as `type` and several as `types`', async () => {
+    const { client, calls } = clientWith(() => json({ apps: [], asOf: '2026-09-30T10:05:00Z' }))
+    await client.apps()
+    await client.apps({ type: 'post' })
+    await client.apps({ type: ['post', 'reply'] })
+    expect(calls.map((c) => c.url.pathname + c.url.search)).toEqual(['/v2/apps', '/v2/apps?type=post', '/v2/apps?types=post%2Creply'])
+    expect(appsSearchParams({ type: [] }).toString()).toBe('')
+  })
+
+  it('apps() rejects a body that is not an AppList', async () => {
+    const { client } = clientWith(() => json({ items: [], next: null }))
+    await expect(client.apps()).rejects.toMatchObject({ code: 'invalid_response' })
   })
 })
 

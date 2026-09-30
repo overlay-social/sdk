@@ -74,10 +74,27 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 - Contract tests: every contract example validates against the schema and
   round-trips through the client; a live smoke test runs when
   `PECK_VIEW_LIVE` is set.
+- `/v2` client: `reactions(txid, { kind?, limit?, cursor? })` lists who liked
+  or reposted a post (`ReactionPage`), `stats()` returns the site totals
+  (`SiteStats`, estimates) and `apps()` the posts per app (`AppList`).
+- `/v2` client: location filters on `feed()`. `hasGeo` keeps posts with a
+  location, `bbox: { minLat, minLng, maxLat, maxLng }` a rectangle (latitude
+  first; `minLng` greater than `maxLng` crosses the antimeridian) and
+  `near: { lat, lng, radiusKm }` a circle. They combine with every other
+  filter, every rank and paging. New exports: `GeoBox`, `GeoNear`,
+  `ReactionKind`, `ReactionsQuery`, `AppsQuery`, `reactionsSearchParams`,
+  `appsSearchParams`.
 
 ### Changed
 - Build is configured in `tsup.config.ts` with one entry per subpath.
 - The `/v1` client moved to `src/read/v1.ts`; its exports are unchanged.
+- The vendored peck-view/v1 contract is re-synced. New in the types: `Geo`
+  (with `category`) on `PostView.geo`, `ProfileCounts.posts`,
+  `ProfileView.certificates` (`IdentityCertificate`), `PostView.source`
+  (`PostSource`, `ContentCommitment`, `SourceVote`), `AuthorView.sourceHandle`,
+  `AppList`, `ReactionPage`, `Reaction` and `SiteStats`. The contract's
+  `SourceHandle` is exported as `PeckViewSourceHandle`, because `SourceHandle`
+  stays the `/v1` row's alias type, as before.
 
 ### Fixed
 - `/v1` `getFeed({ bbox })` sent the box longitude first, but `/v1/feed` reads
