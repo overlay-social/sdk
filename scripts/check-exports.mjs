@@ -46,12 +46,14 @@ for (const [subpath, value] of Object.entries(pkg.exports ?? {})) {
   }
 }
 
-// The package root must keep exposing the overlay client factory.
-const rootEntry = pkg.exports?.['.']?.import
-if (rootEntry) {
-  const mod = await import(pathToFileURL(resolve(root, rootEntry)).href)
-  if (typeof mod.createOverlayClient !== 'function') {
-    fail('"." no longer exports createOverlayClient')
+// The package root and ./read must keep exposing both read client factories:
+// the /v1 facade client and the /v2 read-model client.
+for (const subpath of ['.', './read']) {
+  const entry = pkg.exports?.[subpath]?.import
+  if (!entry) continue
+  const mod = await import(pathToFileURL(resolve(root, entry)).href)
+  for (const name of ['createOverlayClient', 'createReadClient']) {
+    if (typeof mod[name] !== 'function') fail(`"${subpath}" no longer exports ${name}`)
   }
 }
 

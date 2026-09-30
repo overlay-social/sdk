@@ -7,8 +7,8 @@
 Minimal, read-only TypeScript client for **overlay.peck.to** — the canonical
 BSV / BRC-100 social overlay behind peck.to, peck.bio, peck.press and friends.
 
-The package root is a **pure read lens**: identity resolution, profiles,
-feed, and overlay state. It does **not** write, mint, pay, or federate — those
+The package root is a **pure read lens**: the hydrated `/v2` read model plus
+the `/v1` facade for identity resolution, profiles, feed, and overlay state. It does **not** write, mint, pay, or federate — those
 capabilities do not exist on the live service, and this SDK only exposes what
 actually runs. The package is being organised into independent subpath modules
 so further capabilities can be added without changing the read client; see
@@ -24,6 +24,78 @@ Node, pass your own `fetch` via the constructor.
 ## Quick start
 
 ```ts
+import { createReadClient } from '@overlay-social/sdk/read'
+
+const overlay = createReadClient() // -> https://overlay.peck.to/v2
+
+const page = await overlay.feed({ limit: 20, type: 'post' })
+for (const post of page.items) {
+  console.log(post.author.displayName, post.text, post.counts.likes)
+}
+const more = page.next ? await overlay.feed({ limit: 20, type: 'post', cursor: page.next }) : null
+```
+
+## The /v2 read model (recommended)
+
+`createReadClient()` reads the overlay's `/v2` endpoints, which serve the
+**peck-view/v1** contract: posts arrive already hydrated with their author
+(name, handle, picture), counts, media, one level of referenced post and a
+stub of the parent. A screen needs one call, and every client shows the same
+author for the same key. The views are viewer-independent; the one
+per-viewer read is `viewerState()`.
+
+| Method | Endpoint | Returns |
+| --- | --- | --- |
+| `feed(query?)` | `GET /v2/feed` | `FeedPage` (`items`, `next` cursor or `null`) |
+| `post(txid)` | `GET /v2/post/:txid` | `ThreadView` (post, parent, every descendant reply) |
+| `profile(keyOrHandle)` | `GET /v2/profile/:key` | `ProfileView` (address, public key, `@handle` or `handle`) |
+| `posts(txids)` | `POST /v2/posts` | `PostBatch` (`posts` in request order, `missing`); chunked at 100 |
+| `viewerState({ viewer, txids?, authors? })` | `POST /v2/viewer/state` | `ViewerState` (liked/reposted, following/blocked/muted); chunked at 200 |
+| `search(q \| { q, ... })` | `GET /v2/search` | `FeedPage` of best matches (`next` is always `null`) |
+
+**Paging.** `next` is a structured cursor. Pass it back unchanged as
+`cursor`, with the same filters, to get the following page; its keys depend on
+the `rank`, so treat it as opaque.
+
+**Errors.** Every failure throws a `ReadError` with a stable `code` and the
+HTTP `status` (0 when there was no response):
+
+| `code` | When |
+| --- | --- |
+| `bad_request`, `not_found`, `timeout`, `internal` | The overlay answered with an `ErrorResponse` (or a bare status) |
+| `network` | No response: DNS, connection, CORS |
+| `timeout` | Also raised when the client's own `timeoutMs` fires (status 0) |
+| `invalid_response` | A 2xx body that is not the expected view |
+
+Aborting through `signal` rejects with the signal's reason unchanged, as
+`fetch` does.
+
+```ts
+import { createReadClient, isReadError } from '@overlay-social/sdk/read'
+
+const overlay = createReadClient({ timeoutMs: 8000 })
+try {
+  const thread = await overlay.post(txid, { signal })
+} catch (e) {
+  if (isReadError(e) && e.code === 'not_found') showMissing()
+  else throw e
+}
+```
+
+**Types.** All view types (`PostView`, `AuthorView`, `ThreadView`,
+`ProfileView`, `FeedPage`, `ViewerState`, …) are exported. They are generated
+from a vendored copy of the contract's JSON Schema
+(`src/read/peck-view/peck-view.schema.json`); `npm run sync:peck-view -- <path>`
+refreshes both, and `npm run check:peck-view` fails when the committed types
+are stale.
+
+## The /v1 client
+
+`createOverlayClient()` is unchanged. It reads the `/v1` facade and remains
+the way to reach endpoints `/v2` does not cover yet: identity bundles,
+friends, notifications, follows, blocks and topic state.
+
+```ts
 import { createOverlayClient } from '@overlay-social/sdk'
 
 const overlay = createOverlayClient() // -> https://overlay.peck.to
@@ -31,7 +103,7 @@ const overlay = createOverlayClient() // -> https://overlay.peck.to
 const feed = await overlay.getFeed({ limit: 20, type: 'post' })
 ```
 
-## Enriching a feed (the canonical pattern)
+### Enriching a /v1 feed
 
 Feed authors are **P2PKH base58 addresses**. Resolve a whole page in one
 round-trip, then overwrite name/avatar/handle **defensively** — enrichment must
@@ -57,7 +129,7 @@ const rows = data.map((p) => {
 canonical ProfileToken, so a UI that reads `ids[author]?.displayName ?? fallback`
 never throws.
 
-## API
+### /v1 API
 
 | Method | Endpoint | Returns |
 | --- | --- | --- |
@@ -78,7 +150,7 @@ never throws.
 | `getAnchor(topic)` | client-side over `/state` | `TopicAnchor \| null` |
 | `verifyRoot(topic)` | client-side over `/state` | `{anchored, matchesLive, liveRoot, anchoredRoot, txid}` |
 
-### Avatar field divergence (read this)
+### Avatar field divergence in /v1 (read this)
 
 The live overlay is not internally consistent and the SDK does **not** hide it:
 
@@ -118,7 +190,8 @@ const overlay = createOverlayClient({
 ## Not included (on purpose)
 
 No writing / minting / wallet / payment-channel / paywall / federation in the
-read client (the package root and `/read`). Reads go through the `/v1/*` + `/identity` + `/resolve` + `/state` facade, **never**
+read clients (the package root and `/read`). Reads go through `/v2/*` and the
+`/v1/*` + `/identity` + `/resolve` + `/state` facade, **never**
 the BRC-24 `peck-schema` lookup (that `lookup()` is a deliberate no-op), and
 **never** WhatsOnChain.
 
@@ -131,7 +204,7 @@ separate ESM entry point with its own type declarations).
 
 | Subpath | Purpose | Status |
 | --- | --- | --- |
-| `@overlay-social/sdk/read` | Typed read client for the overlay (same surface as the package root) | available |
+| `@overlay-social/sdk/read` | Typed read clients for the overlay: `/v2` read model (recommended) and the `/v1` facade (same surface as the package root) | available |
 | `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs | planned |
 | `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | planned |
 | `@overlay-social/sdk/identity` | Render-ready helpers for identity fields such as avatar references and display names | planned |
@@ -142,7 +215,7 @@ separate ESM entry point with its own type declarations).
 A subpath is only added to the `exports` map when its module ships.
 
 ```ts
-import { createOverlayClient } from '@overlay-social/sdk/read' // same as the root import
+import { createReadClient, createOverlayClient } from '@overlay-social/sdk/read' // same as the root import
 ```
 
 ## Peck OS bridge (`/peckos`)

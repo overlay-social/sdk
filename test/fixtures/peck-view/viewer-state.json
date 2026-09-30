@@ -1,0 +1,24 @@
+{
+  "viewer": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+  "keys": [
+    "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+    "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1"
+  ],
+  "posts": {
+    "1111111111111111111111111111111111111111111111111111111111111111": {
+      "liked": true,
+      "reposted": false
+    },
+    "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e": {
+      "liked": false,
+      "reposted": false
+    }
+  },
+  "authors": {
+    "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK": {
+      "following": true,
+      "blocked": false,
+      "muted": false
+    }
+  }
+}

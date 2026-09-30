@@ -1,0 +1,876 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://overlay.peck.to/contracts/peck-view/v1/peck-view.schema.json",
+  "$comment": "Vendored copy of the peck-view/v1 contract (source sha256 fa01f861e3beaeca54ef3cf139d5085438cb326fa46ccb21e4f39556b6227f8d). Written by scripts/sync-peck-view.mjs; do not edit by hand.",
+  "title": "PeckView",
+  "description": "peck-view/v1: the hydrated read model served by the overlay under /v2. The overlay (producer) owns this contract; clients and the SDK consume it. Every view is viewer-independent: nothing in a PostView, ThreadView, ProfileView or FeedPage depends on who asks, so responses can be cached by URL. Per-viewer facts (liked by me, following, blocked) live only in ViewerState. Evolution rules: within v1 the overlay may ADD optional properties and ADD enum values documented as open; it never removes, renames or retypes a property. Consumers must ignore properties they do not know. A breaking change is a new contract version (peck-view/v2) served side by side. The producer validates its own responses strictly (additionalProperties: false), so a leaked database column fails the overlay's own contract tests.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/FeedPage"
+    },
+    {
+      "$ref": "#/$defs/ThreadView"
+    },
+    {
+      "$ref": "#/$defs/ProfileView"
+    },
+    {
+      "$ref": "#/$defs/PostBatch"
+    },
+    {
+      "$ref": "#/$defs/ViewerState"
+    },
+    {
+      "$ref": "#/$defs/ErrorResponse"
+    }
+  ],
+  "$defs": {
+    "Txid": {
+      "title": "Txid",
+      "description": "A BSV transaction id: 64 lowercase hex characters.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Key": {
+      "title": "Key",
+      "description": "A signing key as the chain carries it: either a base58 P2PKH address (1…) or a 66-hex compressed secp256k1 public key (02…/03…).",
+      "type": "string",
+      "minLength": 1
+    },
+    "IdentityKey": {
+      "title": "IdentityKey",
+      "description": "A BRC-100 identity key: a 66-hex compressed secp256k1 public key, lowercase.",
+      "type": "string",
+      "pattern": "^0[23][0-9a-f]{64}$"
+    },
+    "AuthorView": {
+      "title": "AuthorView",
+      "description": "Who signed a post, resolved once on the overlay. A single function produces every AuthorView, so all clients show the same name, handle and picture for the same key. Identity is keyed on keys, never on names: `key` is the on-chain signer and `identityKey` the BRC-100 identity it resolves to. Names, handles and pictures are labels that can change between reads.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "address",
+        "identityKey",
+        "handle",
+        "displayName",
+        "nameSource",
+        "avatarUrl",
+        "avatarRef",
+        "avatarSource",
+        "generatedAvatarUrl",
+        "paymail",
+        "custodialRelay",
+        "external"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The key that signed the post, exactly as indexed (pecks.author): a base58 P2PKH address, or a 66-hex compressed public key for agent and BRC-100-native authors. Constant for the post. Use it as the profile fallback when `handle` and `identityKey` are null."
+        },
+        "address": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "P2PKH address of `key`: equal to `key` when `key` is an address, derived from the public key otherwise. Null only when `key` is neither."
+        },
+        "identityKey": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IdentityKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "BRC-100 identity key that `key` belongs to. First match wins: (1) overlay identity resolution (key-binding, light identity attestations, ProfileToken, handle claims); (2) the identity key recorded on a legacy peck.to account for this address; (3) `key` itself when it is a public key. Null when nothing links the key to an identity. Prefer it over `key` as the person's id when present. Always null for custodial relay keys."
+        },
+        "handle": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Canonical handle without the leading @, from on-chain claims only: light handle claims (identity_handles) > HandleToken > the ProfileToken's own handle field. Resolved on every read, so it can move to a new owner; the key cannot. Null when unclaimed, and always null for custodial relay keys."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The name to render. Never empty. Candidates in order, first non-empty wins, and `nameSource` records which one: identity > tx > account > external > paymail > key (see nameSource). For custodial relay keys only tx, external and key are considered, because the key belongs to the app."
+        },
+        "nameSource": {
+          "type": "string",
+          "enum": [
+            "identity",
+            "tx",
+            "account",
+            "external",
+            "paymail",
+            "key"
+          ],
+          "description": "Where `displayName` came from. identity: the author's own on-chain profile (light identity attestation preferred over ProfileToken). tx: the display_name written into this transaction's MAP data (for custodial relays that is the app's claim about its user). account: the legacy peck.to account row (off-chain). external: an off-chain platform profile such as twetch; never written on-chain, render with a provenance marker. paymail: the local part of the account paymail. key: nothing named the author; `displayName` is the shortened key (first 6 + … + last 4)."
+        },
+        "avatarUrl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "URL of the author's own picture, ready for an <img src>. Null when the author has no usable picture; peck-native clients then show `generatedAvatarUrl`, others a monogram. Mapping from `avatarRef`, the only place it is done: uhrp://<sha256> → <UHRP base>/uhrp/<sha256>; b://<txid> → <media base>/b/<txid> (<media base>/xavatar/<txid>, a downscaling proxy, when the picture comes from an external profile); ord://<outpoint> → <media base>/ord/<outpoint>; https:// and http:// URLs pass through; data:image/* URIs pass through; peck.to's own generated /avatar/ URLs count as no picture; anything else maps to null. The media base defaults to https://peck.to."
+        },
+        "avatarRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The picture reference exactly as published, before mapping (uhrp://, b://, ord://, https://, data:image/…). Null when the winning record has no picture reference."
+        },
+        "avatarSource": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "identity",
+            "account",
+            "external",
+            null
+          ],
+          "description": "Which record the picture came from: identity (on-chain profile), account (legacy peck.to account row) or external (off-chain platform profile, b:// uploads only; other twetch picture formats are dead links). The first record whose reference maps to a URL wins, in that order. Null when `avatarUrl` is null."
+        },
+        "generatedAvatarUrl": {
+          "type": "string",
+          "description": "Deterministic generated avatar (the peck bird) for this key: <media base>/avatar/<key>?seed=<address>. The seed is the P2PKH address so one key gets the same bird on every surface. Always present."
+        },
+        "paymail": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Paymail on the legacy peck.to account row for this key, if any. Off-chain."
+        },
+        "custodialRelay": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Set when `key` is a known shared custodial key (e.g. treechat.io): the app signed on its users' behalf, so `key` identifies the app, not the person. The value names the app. Null otherwise."
+        },
+        "external": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalProfileRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when the name or the picture came from an off-chain platform profile (nameSource or avatarSource is external). Null otherwise."
+        }
+      }
+    },
+    "ExternalProfileRef": {
+      "title": "ExternalProfileRef",
+      "description": "Where an off-chain name or picture came from. The binding between the account and the key lives only in that platform's database, not on-chain.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "externalId"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The platform the profile was read from, e.g. twetch."
+        },
+        "externalId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The account id on that platform, when known."
+        }
+      }
+    },
+    "PostCounts": {
+      "title": "PostCounts",
+      "description": "Aggregates about a post. All are counted live at read time except lockedSats and powBits, which the indexer materializes on the post row.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "likes",
+        "replies",
+        "reposts",
+        "quotes",
+        "tipSats",
+        "lockedSats",
+        "powBits"
+      ],
+      "properties": {
+        "likes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Reactions targeting this post (every row in reactions, like /v1/post; not unique reactors)."
+        },
+        "replies": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Direct replies: posts whose parent is this post."
+        },
+        "reposts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Posts of type repost that reference this post."
+        },
+        "quotes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Posts of any other type that reference this post with their own content."
+        },
+        "tipSats": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Satoshis paid with this post as context (sum of payments.amount where context_txid is this post)."
+        },
+        "lockedSats": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Satoshis locked against this post (MAP type=lock commitments), as materialized on the post row."
+        },
+        "powBits": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Summed difficulty bits of valid proof-of-work boosts, as materialized on the post row."
+        }
+      }
+    },
+    "Provenance": {
+      "title": "Provenance",
+      "description": "What the chain says about who stands behind a post, graded once on the overlay.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grade",
+        "aipVerified",
+        "nameInTx"
+      ],
+      "properties": {
+        "grade": {
+          "type": "string",
+          "enum": [
+            "custodial",
+            "key",
+            "unverified"
+          ],
+          "description": "Decided in this order. custodial: signed by a known shared custodial key, or app is treechat; the signer is the app, not the person (decided first because it rests on facts the index always holds). key: the Author Identity Protocol signature was verified against the author key. unverified: no verified signature on record; a statement about the index, not proof of forgery (some apps sign over preimage variants the verifier does not check)."
+        },
+        "aipVerified": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "The indexer's raw AIP verification flag (pecks.aip_verified). Null when the indexer never checked."
+        },
+        "nameInTx": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The display_name written into the transaction itself (MAP), if any. For custodial relays this is the only name the chain carries."
+        }
+      }
+    },
+    "MediaItem": {
+      "title": "MediaItem",
+      "description": "One piece of binary media carried by a post's transaction.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "mediaType",
+        "filename",
+        "vout",
+        "sizeBytes"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Fetchable URL: <media base>/b/<txid> for the B-protocol body, <media base>/b/<txid>?vout=<vout> for an extra output. The media base defaults to https://peck.to, whose /b/ proxy serves only sniffed raster/audio/video types from the chain."
+        },
+        "mediaType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Declared media type (image/jpeg, video/mp4, …) as written on-chain. Clients must not trust it for security decisions."
+        },
+        "filename": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Declared filename, if any."
+        },
+        "vout": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Output index for an extra output (post_attachments). Null for the post's main B body."
+        },
+        "sizeBytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Size in bytes when the index knows it; null otherwise."
+        }
+      }
+    },
+    "Geo": {
+      "title": "Geo",
+      "description": "Location the author attached to the post.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "properties": {
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "Latitude in degrees."
+        },
+        "lng": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "description": "Longitude in degrees."
+        }
+      }
+    },
+    "ParentStub": {
+      "title": "ParentStub",
+      "description": "Just enough of a reply's parent to render 'Replying to <name>'. The full parent is in ThreadView.parent.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "txid",
+        "author"
+      ],
+      "properties": {
+        "txid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "The parent's txid (same as PostView.parentTxid)."
+        },
+        "author": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The parent's author. Null when the parent is not indexed."
+        }
+      }
+    },
+    "PostView": {
+      "title": "PostView",
+      "description": "One post, hydrated for rendering: author, counts, media, provenance, one level of referenced post and a stub of the parent. Viewer-independent. Produced only by hydratePosts.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "txid",
+        "type",
+        "kind",
+        "app",
+        "author",
+        "createdAt",
+        "blockHeight",
+        "text",
+        "mediaType",
+        "textTruncated",
+        "textLength",
+        "media",
+        "tags",
+        "channel",
+        "geo",
+        "parentTxid",
+        "threadRootTxid",
+        "parent",
+        "refTxid",
+        "refKind",
+        "ref",
+        "counts",
+        "provenance",
+        "paywalled"
+      ],
+      "properties": {
+        "txid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "The post's transaction id (64 lowercase hex); its permanent address."
+        },
+        "type": {
+          "type": "string",
+          "description": "Bitcoin Schema MAP type as indexed: post, reply or repost today. Open set: other values (e.g. function_response) may appear; render unknown types as a post."
+        },
+        "kind": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Content kind from MAP (e.g. longform, note), lowercase. Null when unset."
+        },
+        "app": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The MAP app that wrote the transaction (peck.to, twetch, treechat, …). Null when unset."
+        },
+        "author": {
+          "$ref": "#/$defs/AuthorView"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the post was made (the indexed timestamp), ISO 8601 in UTC with a trailing Z."
+        },
+        "blockHeight": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Block the transaction was mined in. Null while unconfirmed (the index stores 0 or NULL for those)."
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The text body: MAP content, falling back to the B content. Null when the body is binary media (see `media`) or empty. Untrusted user input: sanitize before rendering it as markup."
+        },
+        "mediaType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "B-protocol media type of the body as written on-chain (text/plain, text/markdown, image/jpeg, …). Null when unset. Use it to pick a renderer, e.g. markdown for text/markdown."
+        },
+        "textTruncated": {
+          "type": "boolean",
+          "description": "True when `text` was cut to the response limit. Limits, in characters (Unicode code points): 262144 for ThreadView.post, 16384 for every other post (feeds, batches, replies, parents, embedded refs). GET /v2/post/{txid} returns the long form."
+        },
+        "textLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Length of the full text in characters (Unicode code points), before truncation. 0 when `text` is null."
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MediaItem"
+          },
+          "description": "Media carried by the transaction: the B body when its media type is image/*, audio/* or video/*, followed by every extra output (post_attachments) in vout order, whatever its type. Empty when there is none."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "MAP tags, trimmed, empty ones dropped. The index stores them as one comma-joined string, so a tag that itself contains a comma arrives split."
+        },
+        "channel": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "MAP channel (rarely used). Null when unset."
+        },
+        "geo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Geo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Location attached to the post, when both lat and lng are set."
+        },
+        "parentTxid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Txid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The post this one replies to. Null for top-level posts."
+        },
+        "threadRootTxid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Txid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The thread root as materialized by the indexer (thread_root_tx), or null. Not filled for most replies yet: walk parentTxid when you need the root."
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParentStub"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Stub of the parent for 'Replying to'. Null exactly when parentTxid is null, and always null on an embedded `ref`."
+        },
+        "refTxid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Txid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The post this one reposts or quotes: the indexed ref_txid; for older rows without one, a MAP quote target ({\"subcontext\":\"quote\",\"tx\":…}) or the first twetch.com/t/<txid> link in the text."
+        },
+        "refKind": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "repost",
+            "quote",
+            null
+          ],
+          "description": "repost: type is repost, the post re-shares `ref` without content of its own. quote: the post has its own content and embeds `ref`. Null exactly when refTxid is null."
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PostView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The referenced post, embedded one level deep: its own `ref` and `parent` are always null (its refTxid/parentTxid are kept). Null when refTxid is null or the target is not indexed; render a link to refTxid then."
+        },
+        "counts": {
+          "$ref": "#/$defs/PostCounts"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "paywalled": {
+          "type": "boolean",
+          "description": "True when the overlay withheld text and media because the operator's paywall covers the post (text null, media empty). /v2 never unlocks content per viewer. The paywall is disabled in production, so this is false today."
+        }
+      }
+    },
+    "ThreadView": {
+      "title": "ThreadView",
+      "description": "Response of GET /v2/post/{txid}: the requested post (`post`, text up to 262144 characters), its direct parent and every descendant reply, hydrated in one response.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "post",
+        "parent",
+        "replies",
+        "repliesTruncated"
+      ],
+      "properties": {
+        "post": {
+          "$ref": "#/$defs/PostView"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PostView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The post it replies to, fully hydrated. Null for a top-level post or when the parent is not indexed."
+        },
+        "replies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PostView"
+          },
+          "description": "All descendants of `post`, level by level (children before grandchildren), oldest first within a level. Build the tree from each reply's parentTxid."
+        },
+        "repliesTruncated": {
+          "type": "boolean",
+          "description": "True when the descendant walk stopped at its cap (500 replies or 10 levels), so `replies` is incomplete."
+        }
+      }
+    },
+    "FeedCursor": {
+      "title": "FeedCursor",
+      "description": "Keyset position after the last item of a page, in the ecosystem's structured-cursor form (before_<sort column>=<value>). Send every key and value back unchanged as query parameters, together with the same filters, to get the next page. The keys follow the sort columns of the chosen rank (before_ts and before_txid for rank=latest), so treat them as opaque.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number"
+        ]
+      }
+    },
+    "FeedPage": {
+      "title": "FeedPage",
+      "description": "One page of a feed (GET /v2/feed, and later search and profile feeds). There is no total count by design.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "next"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PostView"
+          },
+          "description": "The posts on this page, in feed order."
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeedCursor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cursor for the next page. Null when this is the last page."
+        }
+      }
+    },
+    "PostBatch": {
+      "title": "PostBatch",
+      "description": "Response of POST /v2/posts: many posts by txid in one call.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posts",
+        "missing"
+      ],
+      "properties": {
+        "posts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PostView"
+          },
+          "description": "The posts that were found, in request order."
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Txid"
+          },
+          "description": "Requested txids that are not indexed."
+        }
+      }
+    },
+    "ProfileCounts": {
+      "title": "ProfileCounts",
+      "description": "Social graph counts for a profile.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "followers",
+        "following"
+      ],
+      "properties": {
+        "followers": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Follow records pointing at any of the profile's keys or its handle."
+        },
+        "following": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Follow records made by any of the profile's keys."
+        }
+      }
+    },
+    "ProfileView": {
+      "title": "ProfileView",
+      "description": "Response of GET /v2/profile/{key|@handle}: an identity's header. `author` is baked exactly like a post author; author.key is the key the profile was looked up by (the handle owner's identity key for @handle lookups). Its posts come from GET /v2/feed?author=… (a FeedPage).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "author",
+        "bio",
+        "profileOutpoint",
+        "keys",
+        "counts"
+      ],
+      "properties": {
+        "author": {
+          "$ref": "#/$defs/AuthorView"
+        },
+        "bio": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Bio from the identity profile attestation, else the ProfileToken, else the legacy account row. Untrusted user text. Null when none."
+        },
+        "profileOutpoint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Outpoint (<txid>.<vout>) of the canonical profile record the name and picture came from, when on-chain."
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Key"
+          },
+          "description": "Every key known to sign for this identity: the identity key, its P2PKH address, and bound signing keys with their addresses. Posts authored by any of them belong to the profile."
+        },
+        "counts": {
+          "$ref": "#/$defs/ProfileCounts"
+        }
+      }
+    },
+    "PostViewerState": {
+      "title": "PostViewerState",
+      "description": "What one viewer has done to one post.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "liked",
+        "reposted"
+      ],
+      "properties": {
+        "liked": {
+          "type": "boolean",
+          "description": "The viewer (any of ViewerState.keys) has a reaction on this post."
+        },
+        "reposted": {
+          "type": "boolean",
+          "description": "The viewer has a post of type repost referencing this post."
+        }
+      }
+    },
+    "AuthorViewerState": {
+      "title": "AuthorViewerState",
+      "description": "The viewer's relationship to one author.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "following",
+        "blocked",
+        "muted"
+      ],
+      "properties": {
+        "following": {
+          "type": "boolean",
+          "description": "The viewer has a follow record for this author (by any of its keys or its handle)."
+        },
+        "blocked": {
+          "type": "boolean",
+          "description": "The viewer has a block record for this author."
+        },
+        "muted": {
+          "type": "boolean",
+          "description": "The viewer has a mute record for this author."
+        }
+      }
+    },
+    "ViewerState": {
+      "title": "ViewerState",
+      "description": "Response of POST /v2/viewer/state: the only per-viewer read in /v2. Built from public on-chain records looked up by the viewer's key; never cached by the overlay.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "viewer",
+        "keys",
+        "posts",
+        "authors"
+      ],
+      "properties": {
+        "viewer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The viewer key the state was computed for, as given."
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Key"
+          },
+          "description": "Every key treated as the viewer: the given key, its identity key, bound signing keys and their addresses."
+        },
+        "posts": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/PostViewerState"
+          },
+          "description": "State per requested txid."
+        },
+        "authors": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/AuthorViewerState"
+          },
+          "description": "State per requested author key, keyed exactly as requested."
+        }
+      }
+    },
+    "ErrorResponse": {
+      "title": "ErrorResponse",
+      "description": "Body of every non-2xx /v2 response.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Stable machine-readable code: bad_request, not_found, timeout (a search lane gave up; retry later) or internal."
+            },
+            "message": {
+              "type": "string",
+              "description": "Human-readable detail. Not stable; do not parse."
+            }
+          }
+        }
+      }
+    }
+  }
+}

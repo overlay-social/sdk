@@ -1,0 +1,262 @@
+{
+  "post": {
+    "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+    "type": "reply",
+    "kind": null,
+    "app": "peck.to",
+    "author": {
+      "key": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+      "address": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+      "identityKey": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+      "handle": "ada",
+      "displayName": "Ada",
+      "nameSource": "identity",
+      "avatarUrl": "https://peck.bio/uhrp/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "avatarRef": "uhrp://a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "avatarSource": "identity",
+      "generatedAvatarUrl": "https://peck.to/avatar/1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1?seed=1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+      "paymail": null,
+      "custodialRelay": null,
+      "external": null
+    },
+    "createdAt": "2026-09-30T08:56:31Z",
+    "blockHeight": null,
+    "text": "A **read model** for peck. Also this photo:",
+    "mediaType": "text/markdown",
+    "textTruncated": false,
+    "textLength": 43,
+    "media": [],
+    "tags": [
+      "peck",
+      "v2"
+    ],
+    "channel": null,
+    "geo": null,
+    "parentTxid": "1111111111111111111111111111111111111111111111111111111111111111",
+    "threadRootTxid": null,
+    "parent": {
+      "txid": "1111111111111111111111111111111111111111111111111111111111111111",
+      "author": {
+        "key": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "address": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "identityKey": null,
+        "handle": null,
+        "displayName": "marcus",
+        "nameSource": "tx",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK?seed=14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "paymail": null,
+        "custodialRelay": "treechat.io",
+        "external": null
+      }
+    },
+    "refTxid": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+    "refKind": "quote",
+    "ref": {
+      "txid": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+      "type": "post",
+      "kind": null,
+      "app": "twetch",
+      "author": {
+        "key": "1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi",
+        "address": "1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi",
+        "identityKey": null,
+        "handle": null,
+        "displayName": "satoshifan",
+        "nameSource": "external",
+        "avatarUrl": "https://peck.to/xavatar/b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+        "avatarRef": "b://b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+        "avatarSource": "external",
+        "generatedAvatarUrl": "https://peck.to/avatar/1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi?seed=1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": {
+          "source": "twetch",
+          "externalId": "910"
+        }
+      },
+      "createdAt": "2020-07-14T19:02:11Z",
+      "blockHeight": 643120,
+      "text": "sunset over the fjord",
+      "mediaType": "text/plain",
+      "textTruncated": false,
+      "textLength": 21,
+      "media": [
+        {
+          "url": "https://peck.to/b/7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+          "mediaType": "image/jpeg",
+          "filename": "twetch_twembed1594753331000.jpg",
+          "vout": null,
+          "sizeBytes": null
+        }
+      ],
+      "tags": [],
+      "channel": null,
+      "geo": null,
+      "parentTxid": null,
+      "threadRootTxid": null,
+      "parent": null,
+      "refTxid": null,
+      "refKind": null,
+      "ref": null,
+      "counts": {
+        "likes": 14,
+        "replies": 2,
+        "reposts": 0,
+        "quotes": 1,
+        "tipSats": 302114,
+        "lockedSats": 0,
+        "powBits": 0
+      },
+      "provenance": {
+        "grade": "unverified",
+        "aipVerified": false,
+        "nameInTx": null
+      },
+      "paywalled": false
+    },
+    "counts": {
+      "likes": 2,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0,
+      "tipSats": 1000,
+      "lockedSats": 0,
+      "powBits": 0
+    },
+    "provenance": {
+      "grade": "key",
+      "aipVerified": true,
+      "nameInTx": null
+    },
+    "paywalled": false
+  },
+  "parent": {
+    "txid": "1111111111111111111111111111111111111111111111111111111111111111",
+    "type": "post",
+    "kind": null,
+    "app": "treechat",
+    "author": {
+      "key": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+      "address": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+      "identityKey": null,
+      "handle": null,
+      "displayName": "marcus",
+      "nameSource": "tx",
+      "avatarUrl": null,
+      "avatarRef": null,
+      "avatarSource": null,
+      "generatedAvatarUrl": "https://peck.to/avatar/14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK?seed=14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+      "paymail": null,
+      "custodialRelay": "treechat.io",
+      "external": null
+    },
+    "createdAt": "2026-09-29T21:14:03Z",
+    "blockHeight": 918150,
+    "text": "What is everyone building this week?",
+    "mediaType": "text/plain",
+    "textTruncated": false,
+    "textLength": 36,
+    "media": [],
+    "tags": [
+      "building"
+    ],
+    "channel": null,
+    "geo": null,
+    "parentTxid": null,
+    "threadRootTxid": null,
+    "parent": null,
+    "refTxid": null,
+    "refKind": null,
+    "ref": null,
+    "counts": {
+      "likes": 3,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0,
+      "tipSats": 0,
+      "lockedSats": 0,
+      "powBits": 0
+    },
+    "provenance": {
+      "grade": "custodial",
+      "aipVerified": true,
+      "nameInTx": "marcus"
+    },
+    "paywalled": false
+  },
+  "replies": [
+    {
+      "txid": "3333333333333333333333333333333333333333333333333333333333333333",
+      "type": "reply",
+      "kind": null,
+      "app": "peck.agents",
+      "author": {
+        "key": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "handle": null,
+        "displayName": "027eaf…9ad0",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "createdAt": "2026-09-30T09:01:00Z",
+      "blockHeight": null,
+      "text": "Indexed. 15 queries per page.",
+      "mediaType": "text/plain",
+      "textTruncated": false,
+      "textLength": 29,
+      "media": [],
+      "tags": [],
+      "channel": null,
+      "geo": null,
+      "parentTxid": "2222222222222222222222222222222222222222222222222222222222222222",
+      "threadRootTxid": null,
+      "parent": {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "author": {
+          "key": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+          "address": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+          "identityKey": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+          "handle": "ada",
+          "displayName": "Ada",
+          "nameSource": "identity",
+          "avatarUrl": "https://peck.bio/uhrp/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "avatarRef": "uhrp://a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "avatarSource": "identity",
+          "generatedAvatarUrl": "https://peck.to/avatar/1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1?seed=1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+          "paymail": null,
+          "custodialRelay": null,
+          "external": null
+        }
+      },
+      "refTxid": null,
+      "refKind": null,
+      "ref": null,
+      "counts": {
+        "likes": 0,
+        "replies": 0,
+        "reposts": 0,
+        "quotes": 0,
+        "tipSats": 0,
+        "lockedSats": 0,
+        "powBits": 0
+      },
+      "provenance": {
+        "grade": "unverified",
+        "aipVerified": false,
+        "nameInTx": null
+      },
+      "paywalled": false
+    }
+  ],
+  "repliesTruncated": false
+}
