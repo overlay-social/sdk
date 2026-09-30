@@ -20,7 +20,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./read": {
+      "types": "./dist/read.d.ts",
+      "import": "./dist/read.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -32,9 +37,13 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean",
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "lint": "eslint .",
+    "test": "vitest run",
+    "check:exports": "node scripts/check-exports.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:exports",
+    "prepublishOnly": "npm run verify"
   },
   "keywords": [
     "bsv",
@@ -46,7 +55,11 @@
     "metanet"
   ],
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
     "tsup": "^8.0.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^4.1.11"
   }
 }
