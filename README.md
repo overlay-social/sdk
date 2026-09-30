@@ -486,7 +486,7 @@ const link = `/u/${profileRef(author)}`    // handle, else identity key, else ke
 | `shortKey(key)` | `1BSMAM…U4gG`: first 6 + `…` + last 4 of anything longer than 12 |
 | `keyKind(key)`, `keyToAddress(key)`, `normalizeKey(key)` | Address, public key or neither; the P2PKH address of a public key |
 | `profileRef(author)` | What identifies the author in a link or a profile read: handle, then identity key, then key |
-| `monogram(name)`, `isExternal(author)`, `isCustodial(author)` | A placeholder letter; provenance flags |
+| `monogram(name)`, `isExternal(author)`, `isCustodial(author)` | A placeholder letter (the first letter or digit, as peck.to picks it: `$Mikey` gives `M`, no letter gives `·`); provenance flags |
 
 **Name.** The first non-empty of: the author's own on-chain profile
 (`identity`), the `display_name` written in the transaction (`tx`), an app

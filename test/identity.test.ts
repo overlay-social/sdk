@@ -332,14 +332,26 @@ describe('display helpers', () => {
     expect(profileRef({ handle: null, identityKey: null, key: ADDRESS })).toBe(ADDRESS)
   })
 
-  it('makes a monogram', () => {
+  it('makes a monogram from the first letter or digit, as peck.to does', () => {
+    // peck.to's own cases: a leading sigil and curly quotes are skipped.
+    expect(monogram('$Mikey “priceiswrong”')).toBe('M')
+    expect(monogram('emiliano')).toBe('E')
+    expect(monogram('')).toBe('·')
+    expect(monogram(null)).toBe('·')
+    // More of the same rule.
     expect(monogram('ada')).toBe('A')
     expect(monogram('  élan')).toBe('É')
+    expect(monogram('@ada')).toBe('A')
+    expect(monogram('"quoted" name')).toBe('Q')
+    expect(monogram('…_-ok')).toBe('O')
     expect(monogram('1FC9jm…uhA1')).toBe('1')
-    expect(monogram('👍🏽 fan')).toBe('👍🏽')
-    expect(monogram('')).toBe('?')
-    expect(monogram('   ')).toBe('?')
-    expect(monogram(null)).toBe('?')
+    expect(monogram('👍🏽 fan')).toBe('F')
+    expect(monogram('さくら')).toBe('さ')
+    expect(monogram('٣ три')).toBe('٣')
+    expect(monogram('istanbul')).toBe('I') // not locale-dependent
+    expect(monogram('   ')).toBe('·')
+    expect(monogram('🐦 $$ ...')).toBe('·')
+    expect(monogram(undefined)).toBe('·')
   })
 
   it('flags external and custodial authors', () => {

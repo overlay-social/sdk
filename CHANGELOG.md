@@ -110,6 +110,10 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `channelsSearchParams`, `identitiesSearchParams`, `lensesSearchParams`.
 
 ### Changed
+- `identity`: `monogram()` follows peck.to's rule: the first letter or digit
+  of the name (any script), upper-cased without locale rules, so leading
+  sigils, quotes and emoji are skipped (`$Mikey` gives `M`). A name without a
+  letter or digit gives `·` instead of `?`.
 - Build is configured in `tsup.config.ts` with one entry per subpath.
 - The `/v1` client moved to `src/read/v1.ts`; its exports are unchanged.
 - The vendored peck-view/v1 contract is re-synced. New in the types: `Geo`

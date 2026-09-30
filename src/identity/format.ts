@@ -30,14 +30,20 @@ export function profileRef(author: Pick<AuthorView, 'handle' | 'identityKey' | '
   return author.handle ?? author.identityKey ?? author.key
 }
 
-/** The first character of a name, upper-cased, for a placeholder picture. `?` when the name is empty. */
+const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u
+
+/**
+ * The character for a placeholder picture, by the rule peck.to applies: the
+ * first letter or digit of the name, in any script, upper-cased. Leading
+ * sigils, quotes, punctuation and emoji are skipped, so `$Mikey
+ * “priceiswrong”` gives `M`. When the name has no letter or digit the result
+ * is a middle dot (`·`), not `?`: a missing picture is not an error.
+ */
 export function monogram(displayName: string | null | undefined): string {
-  const name = (displayName ?? '').trim()
-  if (!name) return '?'
-  const first = typeof Intl.Segmenter === 'function'
-    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(name)[Symbol.iterator]().next().value?.segment
-    : Array.from(name)[0]
-  return (first ?? '?').toLocaleUpperCase()
+  for (const ch of String(displayName ?? '')) {
+    if (LETTER_OR_DIGIT.test(ch)) return ch.toUpperCase()
+  }
+  return '·'
 }
 
 /**
