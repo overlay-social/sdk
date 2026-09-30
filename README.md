@@ -241,7 +241,7 @@ separate ESM entry point with its own type declarations).
 | `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | available |
 | `@overlay-social/sdk/identity` | The rules for showing an author: display name, handle, short key and avatar URL, the same ones the overlay applies | available |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for chain content: markdown to safe HTML for browsers and server rendering | available |
-| `@overlay-social/sdk/dm` | BRC-42 direct-message envelopes and a message-box client | planned |
+| `@overlay-social/sdk/dm` | End-to-end encrypted direct messages: BRC-42 envelopes and a message-box client, compatible with peck.to | available |
 | `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | available |
 
 A subpath is only added to the `exports` map when its module ships.
@@ -506,6 +506,90 @@ a person: `bakeAuthor` ignores identity, account and handle for it, and
 `bakeAuthor` needs `@bsv/sdk` to derive the address of a public key, so it is
 the one part of this module that is not tiny; the display helpers above pull in
 nothing else.
+
+## Direct messages (`/dm`)
+
+End-to-end encrypted direct messages that interoperate with peck.to in both
+directions: what this module sends, peck.to reads, and the other way round.
+
+```ts
+import { connect } from '@overlay-social/sdk/wallet'
+import { createDmClient } from '@overlay-social/sdk/dm'
+
+const wallet = await connect({ originator: 'example.com' })
+const dm = createDmClient({ wallet }) // message box: https://msg.peck.to
+
+await dm.send(recipientIdentityKey, 'hello')
+
+for (const m of await dm.list()) show(m.sender, m.text, m.sentAt)
+await dm.ack(idsTheUserHasSeen) // deletes them from the box for all devices
+```
+
+**Envelopes.** A message is an envelope,
+`{"v":1,"from":<key>,"to":<key>,"ciphertext":<base64>,"sentAt":<ms>}`, whose
+ciphertext the user's wallet produces with `encrypt` under protocol
+`[2, 'peck dm']`, key ID `'1'`, counterparty = the recipient (BRC-2
+encryption, BRC-42 key). The recipient decrypts with counterparty = the
+sender, and the sender can read its own messages back. The SDK only calls the
+wallet; it never sees a key. `buildEnvelope`, `openEnvelope`, `parseEnvelope`,
+`encryptText` and `decryptText` work without the client.
+
+**Transport.** The message box stores messages per recipient and box until
+they are acknowledged. Requests are mutually authenticated (BRC-103/104,
+`AuthFetch` from `@bsv/sdk`). DMs go to the box `dm_inbox`. If a user
+advertises another message box host on the overlay (`ls_messagebox`), messages
+to them go there, and the user's own list and acknowledge calls cover it too;
+pass `lookup: false` to use one host only.
+
+**A permanent copy on-chain.** peck.to writes each DM twice: to the message
+box, and on-chain as a Bitcoin Schema message whose B content is the same
+envelope. The transaction id becomes the message id, so the two copies are one
+message:
+
+```ts
+import { envelopeMessage } from '@overlay-social/sdk/dm'
+import { signPayload } from '@overlay-social/sdk/schema'
+
+const envelope = await dm.envelope(to, text)
+const lockingScript = await signPayload(envelopeMessage(envelope), { wallet })
+const { txid } = await wallet.createAction({
+  description: 'Encrypted DM',
+  outputs: [{ lockingScript: lockingScript.toHex(), satoshis: 0, outputDescription: 'DM' }],
+})
+await dm.sendEnvelope(envelope, { messageId: txid })
+```
+
+`dm.openEnvelope(envelope)` decrypts such a copy later, whether the user sent
+or received it.
+
+**Live delivery.** Pass a socket factory to receive messages as they arrive and
+to send typing and receipt signals:
+
+```ts
+import { AuthSocketClient } from '@bsv/authsocket-client'
+
+const dm = createDmClient({ wallet, socket: AuthSocketClient })
+const stop = await dm.listen('dm_inbox', (m) => show(m.sender, m.text))
+await dm.sendTyping(peer)                      // box dm_typing
+await dm.sendReceipt(peer, 'seen', [messageId]) // box dm_receipt
+stop()
+```
+
+`@bsv/authsocket-client` is an optional peer dependency: install it when you
+want live delivery. Without it, `listen()` rejects with code `no_socket`,
+`sendLive()` uses HTTP, and signals are skipped. The client joins its rooms
+again after the socket reconnects. `parseSignal()` reads the text of a
+typing or receipt envelope.
+
+**Errors.** Every failure is a `DmError` with a `code`: `invalid_argument`,
+`invalid_envelope`, `network`, `http`, `server`, `invalid_response`,
+`no_socket` or `live_unavailable`. `status` is the HTTP status and
+`serverCode` the message box's own code (for example `ERR_DELIVERY_BLOCKED`).
+
+`list()` leaves out rows that are not envelopes or do not decrypt;
+`listRows()` returns everything, so an app can acknowledge rows it cannot
+read. Payments attached to messages are not accepted into the wallet: DMs carry
+none, and nothing in this module moves money.
 
 ## Peck OS bridge (`/peckos`)
 

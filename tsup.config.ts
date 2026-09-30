@@ -13,6 +13,7 @@ export default defineConfig({
     sanitize: 'src/sanitize/index.ts',
     'sanitize.web': 'src/sanitize/web.ts',
     peckos: 'src/peckos/index.ts',
+    dm: 'src/dm/index.ts',
   },
   format: ['esm'],
   dts: true,
