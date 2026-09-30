@@ -238,6 +238,7 @@ await wallet.createAction({
 | Builder | Writes |
 | --- | --- |
 | `post({ app, text?, media?, channel?, tags?, geo?, mentions? })` | B (text or media) + `MAP SET type post` (+ `ADD tags`) |
+| `pin({ app, geo, title, description?, category?, tags?, mentions? })` | a post with a location, laid out as peck.world writes it (see [Locations](#locations-and-pins)) |
 | `reply({ ..., parentTxid })` | as `post`, pointing at the parent (`context tx`, `tx`, `reply`) |
 | `quote({ ..., targetTxid })` | own content + `type repost`, `tx <target>` |
 | `repost({ app, targetTxid })` | `MAP SET type repost tx <target>` |
@@ -250,6 +251,38 @@ await wallet.createAction({
 Builders are pure and synchronous and return a `SchemaPayload`. They reject
 empty values and values that would read as a section separator. `signPayload()`
 appends the AIP section and returns an `@bsv/sdk` `LockingScript`.
+
+### Locations and pins
+
+A pin is a post with a location. Any app can attach one to a post, reply or
+quote with `geo`, and every reader that looks at coordinates shows it.
+
+```ts
+post({ app: 'peck.to', text: 'Coffee here', geo: { lat: 59.9139, lng: 10.7522 } })
+post({ app: 'example.app', text: 'Summit', geo: { lat: 61.6363, lng: 8.3125, alt: 2469.5, geohash: true } })
+pin({ app: 'peck.world', title: 'Cafe', category: 'business', geo: { lat: 59.9139, lng: 10.7522 } })
+```
+
+A location is written as MAP `SET` pairs, in this order:
+`lat <n> lng <n> [alt <n>] [geohash <base32>]`. These are the keys the indexer
+reads. Numbers are plain decimals: no exponent, no trailing zeros, `lat` and
+`lng` rounded to at most `precision` decimals (default 6, about 0.1 m; 0 to
+15), `alt` to 2. The same location always produces the same bytes, and a value
+that is written short stays as `String(n)` prints it (`59.9`, not
+`59.899999999999999`). A location on chain is permanent and public; pass a
+lower `precision` to publish a coarser one.
+
+Values are checked before anything is written: `lat` within ±90, `lng` within
+±180, every number finite, and not exactly 0,0 (which the indexer ignores, so
+it would never show). `geohash: true` (or a length from 1 to 12) computes a
+geohash from the coordinates as written; a string is checked against them and
+written lowercased. `encodeGeohash()`, `decodeGeohash()` and `normalizeGeo()`
+are exported for readers and forms.
+
+`pin()` adds what peck.world writes for a pin: the B section is the markdown
+`# <title>` (and a description under it) named `pin.md`, and MAP carries
+`category` (one of `PIN_CATEGORIES`, default `general`) and `title` after the
+location. The type stays `post`: there is no separate pin type.
 
 **Signing.** The SDK never holds a private key. `signPayload()` asks the
 wallet (any BRC-100 `WalletInterface`, e.g. the one `PeckOS.detect()` returns)

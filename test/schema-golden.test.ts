@@ -11,9 +11,11 @@ import {
   PROTO_AIP,
   like,
   opReturnPushes,
+  pin,
   post,
   reply,
   signPayload,
+  toLockingScript,
   verifyAip,
   type AipWallet,
   type SchemaPayload,
@@ -30,7 +32,11 @@ interface Vector {
 
 const fixture = JSON.parse(
   readFileSync(resolve(import.meta.dirname, 'fixtures/schema/golden-vectors.json'), 'utf8'),
-) as { vectors: Vector[]; legacy: Array<{ txid: string; scriptHex: string }> }
+) as {
+  vectors: Vector[]
+  legacy: Array<{ txid: string; scriptHex: string }>
+  pins: Array<Omit<Vector, 'builder'> & { builder: 'pin' }>
+}
 
 const builders = {
   post: (i: Record<string, unknown>) => post(i as unknown as Parameters<typeof post>[0]),
@@ -84,4 +90,28 @@ describe('golden vectors from the peck.to web client', () => {
       expect(verifyAip(v.scriptHex)).toMatchObject({ algorithm: 'BITCOIN_ECDSA', valid: false })
     }
   })
+})
+
+describe('golden pin from peck.world', () => {
+  expect(fixture.pins.length).toBeGreaterThan(0)
+
+  for (const v of fixture.pins) {
+    // This pin carries the older AIP form (BITCOIN_ECDSA over a shorter preimage), which
+    // signPayload does not write and verifyAip does not accept. What is compared is
+    // everything the builder controls: the B and MAP sections, push for push.
+    it(`pin: ${v.note.split(' (')[0]} (${v.txid.slice(0, 12)}…)`, () => {
+      const onChain = opReturnPushes(v.scriptHex)!
+      const at = onChain.findIndex((p) => Utils.toUTF8(p) === PROTO_AIP)
+      expect(at).toBeGreaterThan(0)
+      expect(Utils.toUTF8(onChain[at - 1]!)).toBe('|')
+
+      const built = pin(v.input as unknown as Parameters<typeof pin>[0])
+      expect(built.pushes).toEqual(onChain.slice(0, at - 1))
+      expect(v.scriptHex.startsWith(toLockingScript(built).toHex())).toBe(true)
+    })
+
+    it(`${v.txid.slice(0, 12)}… is reported as an older AIP form`, () => {
+      expect(verifyAip(v.scriptHex)).toMatchObject({ algorithm: 'BITCOIN_ECDSA', valid: false })
+    })
+  }
 })
