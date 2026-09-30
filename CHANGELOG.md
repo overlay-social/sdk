@@ -3,6 +3,20 @@
 All notable changes to `@overlay-social/sdk`. The project follows semver;
 pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 
+## Unreleased
+
+### Added
+- Subpath export `@overlay-social/sdk/read`: the existing read client on its
+  own entry point. The package root re-exports it unchanged, so existing
+  imports keep working.
+- Tooling: `vitest` test runner, `eslint` (typescript-eslint) lint,
+  `npm run verify`, an exports-map check (`npm run check:exports`), and a CI
+  workflow running lint, typecheck, tests and build on Node 20 and 22.
+- README section describing the planned modules.
+
+### Changed
+- Build is configured in `tsup.config.ts` with one entry per subpath.
+
 ## 0.3.0 — 2026-07-29
 
 ### Added

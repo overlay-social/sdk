@@ -7,9 +7,12 @@
 Minimal, read-only TypeScript client for **overlay.peck.to** — the canonical
 BSV / BRC-100 social overlay behind peck.to, peck.bio, peck.press and friends.
 
-It is a **pure read lens**: identity resolution, profiles, feed, and overlay
-state. It does **not** write, mint, pay, or federate — those capabilities do
-not exist on the live service, and this SDK only exposes what actually runs.
+The current release is a **pure read lens**: identity resolution, profiles,
+feed, and overlay state. It does **not** write, mint, pay, or federate — those
+capabilities do not exist on the live service, and this SDK only exposes what
+actually runs. The package is being organised into independent subpath modules
+so further capabilities can be added without changing the read client; see
+[Modules](#modules).
 
 ```bash
 npm install @overlay-social/sdk
@@ -114,10 +117,43 @@ const overlay = createOverlayClient({
 
 ## Not included (on purpose)
 
-No writing / minting / wallet / payment-channel / paywall / federation. Reads
-go through the `/v1/*` + `/identity` + `/resolve` + `/state` facade, **never**
+No writing / minting / wallet / payment-channel / paywall / federation in the
+current release. Reads go through the `/v1/*` + `/identity` + `/resolve` + `/state` facade, **never**
 the BRC-24 `peck-schema` lookup (that `lookup()` is a deliberate no-op), and
 **never** WhatsOnChain.
+
+## Modules
+
+The package root keeps exporting the read client, exactly as before. Each
+capability lives on its own subpath, so importing the read client never pulls
+in wallet or crypto code (`sideEffects` is `false`, and every subpath is a
+separate ESM entry point with its own type declarations).
+
+| Subpath | Purpose | Status |
+| --- | --- | --- |
+| `@overlay-social/sdk/read` | Typed read client for the overlay (same surface as the package root) | available |
+| `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs | planned |
+| `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | planned |
+| `@overlay-social/sdk/identity` | Render-ready helpers for identity fields such as avatar references and display names | planned |
+| `@overlay-social/sdk/sanitize` | One HTML sanitising profile for user-generated content | planned |
+| `@overlay-social/sdk/dm` | BRC-42 direct-message envelopes and a message-box client | planned |
+| `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | planned |
+
+A subpath is only added to the `exports` map when its module ships.
+
+```ts
+import { createOverlayClient } from '@overlay-social/sdk/read' // same as the root import
+```
+
+## Development
+
+```bash
+npm ci
+npm run verify   # lint, typecheck, tests, build, exports check
+```
+
+`npm run check:exports` builds nothing itself: it loads the built `dist/` files
+and fails if any file declared in the `exports` map is missing or empty.
 
 ## License
 
