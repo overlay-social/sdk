@@ -346,6 +346,17 @@ describe('live delivery', () => {
     expect(boxes.calls).toHaveLength(1)
   })
 
+  it('asks the server again after an authentication timeout', async () => {
+    const { sockets, factory } = liveSetup({ auth: null })
+    const dm = client(bob, BOB, new FakeBoxes(), { socket: factory, liveAuthTimeoutMs: 20 })
+    await expect(dm.listen(DM_BOX, () => {})).rejects.toMatchObject({ code: 'live_unavailable' })
+    sockets[0]!.auth = 'success'
+    await dm.listen(DM_BOX, () => {})
+    expect(sockets).toHaveLength(1)
+    expect(sockets[0]!.emitted.filter((e) => e.event === 'authenticated')).toHaveLength(2)
+    expect(dm.isLive()).toBe(true)
+  })
+
   it('reports a socket the server refuses', async () => {
     const { factory } = liveSetup({ auth: 'failed' })
     const dm = client(bob, BOB, new FakeBoxes(), { socket: factory })

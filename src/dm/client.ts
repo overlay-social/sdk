@@ -595,10 +595,11 @@ export function createDmClient(options: DmClientOptions): DmClient {
       s.on('disconnect', () => {
         authed = false
       })
-      if (s.connected) s.emit('authenticated', { identityKey })
     }
     const s = socket
     if (authed) return s
+    // Connected but not (yet) authenticated, e.g. an earlier attempt timed out: ask again.
+    if (s.connected) s.emit('authenticated', { identityKey })
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         authWaiters = authWaiters.filter((w) => w.resolve !== done)
