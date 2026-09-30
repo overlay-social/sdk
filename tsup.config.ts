@@ -9,6 +9,8 @@ export default defineConfig({
     read: 'src/read/index.ts',
     schema: 'src/schema/index.ts',
     wallet: 'src/wallet/index.ts',
+    sanitize: 'src/sanitize/index.ts',
+    'sanitize.web': 'src/sanitize/web.ts',
     peckos: 'src/peckos/index.ts',
   },
   format: ['esm'],
