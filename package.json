@@ -25,6 +25,15 @@
       "types": "./dist/read.d.ts",
       "import": "./dist/read.js"
     },
+    "./peckos": {
+      "types": "./dist/peckos.d.ts",
+      "import": "./dist/peckos.js"
+    },
+    "./peckos/browser": {
+      "types": "./dist/peckos.d.ts",
+      "import": "./dist/peckos.browser.js",
+      "default": "./dist/peckos.browser.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -37,7 +46,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsup --config tsup.browser.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

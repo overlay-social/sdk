@@ -7,7 +7,7 @@
 Minimal, read-only TypeScript client for **overlay.peck.to** — the canonical
 BSV / BRC-100 social overlay behind peck.to, peck.bio, peck.press and friends.
 
-The current release is a **pure read lens**: identity resolution, profiles,
+The package root is a **pure read lens**: identity resolution, profiles,
 feed, and overlay state. It does **not** write, mint, pay, or federate — those
 capabilities do not exist on the live service, and this SDK only exposes what
 actually runs. The package is being organised into independent subpath modules
@@ -118,7 +118,7 @@ const overlay = createOverlayClient({
 ## Not included (on purpose)
 
 No writing / minting / wallet / payment-channel / paywall / federation in the
-current release. Reads go through the `/v1/*` + `/identity` + `/resolve` + `/state` facade, **never**
+read client (the package root and `/read`). Reads go through the `/v1/*` + `/identity` + `/resolve` + `/state` facade, **never**
 the BRC-24 `peck-schema` lookup (that `lookup()` is a deliberate no-op), and
 **never** WhatsOnChain.
 
@@ -137,13 +137,42 @@ separate ESM entry point with its own type declarations).
 | `@overlay-social/sdk/identity` | Render-ready helpers for identity fields such as avatar references and display names | planned |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for user-generated content | planned |
 | `@overlay-social/sdk/dm` | BRC-42 direct-message envelopes and a message-box client | planned |
-| `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | planned |
+| `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | available |
 
 A subpath is only added to the `exports` map when its module ships.
 
 ```ts
 import { createOverlayClient } from '@overlay-social/sdk/read' // same as the root import
 ```
+
+## Peck OS bridge (`/peckos`)
+
+Apps that run inside a Peck OS window can reach the user's BRC-100 wallet through the
+desktop, with no login screen of their own. `detect()` resolves to `null` everywhere else
+(including during server-side rendering), so the same code runs in and out of Peck OS.
+
+```ts
+import { PeckOS } from '@overlay-social/sdk/peckos'
+
+const os = await PeckOS.detect() // null when not inside Peck OS
+if (os !== null) {
+  if (!os.connected) await os.connect() // Peck apps are connected already
+  const { publicKey } = await os.wallet.getPublicKey({ identityKey: true })
+  os.notify('Posted', 'Your post is on chain')
+  os.open('https://peck.bio/') // opens in the Peck OS window for that app
+}
+```
+
+Protocol: BRC-100 cross-document invocations (`{ type: 'CWI' }`) for
+wallet calls plus `{ type: 'peckos' }` messages for the desktop. Messages go to an exact
+target origin, and a reply is only accepted from the parent window and that origin. Only
+`https://os.peck.to` is trusted; for local development a loopback origin can be added from
+the app's own storage with `localStorage.setItem('peckos:trust', 'http://127.0.0.1:5173')`
+(non-loopback values are ignored).
+
+For pages without a build step, `@overlay-social/sdk/peckos/browser` is the same module as a
+single dependency-free ES module (`dist/peckos.browser.js`): copy it next to the page or serve
+it from a static host and `import { PeckOS } from './peckos.browser.js'`.
 
 ## Development
 

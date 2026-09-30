@@ -36,6 +36,13 @@ for (const [subpath, value] of Object.entries(pkg.exports ?? {})) {
       const mod = await import(pathToFileURL(abs).href)
       if (Object.keys(mod).length === 0) fail(`${subpath}: ${t.file} has no exports`)
     }
+    // Browser builds are meant to be copied or served as a single file: no imports allowed.
+    if (t.file.endsWith('.browser.js')) {
+      const src = readFileSync(abs, 'utf8')
+      if (/^\s*import\s|\bimport\(|\brequire\(|^\s*export\s[^;]*\sfrom\s/m.test(src)) {
+        fail(`${subpath}: ${t.file} must be self-contained (found an import)`)
+      }
+    }
   }
 }
 

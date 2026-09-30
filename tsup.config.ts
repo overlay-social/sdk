@@ -7,6 +7,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     read: 'src/read/index.ts',
+    peckos: 'src/peckos/index.ts',
   },
   format: ['esm'],
   dts: true,
