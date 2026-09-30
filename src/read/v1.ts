@@ -6,7 +6,7 @@
  * speaks the REST facade that actually runs today (verified against
  * overlay.peck.to), NOT the BRC-24 `peck-schema` lookup (that lookup() is a no-op).
  *
- * Philosophy (mirrors peck-web/overlay_client.py + peck-press/src/overlay.ts):
+ * Design principles:
  *  - identity enrichment is BEST-EFFORT: resolveIdentities returns {} on any
  *    error and silently omits keys without a canonical ProfileToken, so a feed
  *    UI can overwrite displayName/avatar/handle defensively and NEVER break.
@@ -119,8 +119,10 @@ export interface ProfileRow {
  * on-chain state — never a peck-native handle. Today the only source is
  * Zanaadu: it sells on-chain "user numbers" (an on-chain collectibles
  * registry), and rows with `app: 'zanaadu'` carry the holder's number here.
- * See `peck-overlay-schema/ZANAADU_POSTANCHOR_FORMAT.md` §13 for the full
- * derivation and its proof gap.
+ * The number is derived from Zanaadu's own registry transactions: a
+ * registration advances a counter and the new entry takes the counter's
+ * previous value, and an entry can later change owner through Zanaadu's
+ * marketplace, so it is not always readable from a single transaction.
  *
  * `namespace` is mandatory and comes first so the value can never be shown
  * bare and mistaken for a peck handle — render it qualified, e.g.
@@ -150,8 +152,8 @@ export interface SourceHandle {
    * All numbers this key owns at the source, ascending. Only present when
    * there is more than one; `value`/`number` are then the lowest. Tie-break
    * for "which number is primary" when a key owns several is NOT proven
-   * on-chain (§13.7) — lowest was chosen for stability over time, not
-   * because it is confirmed canonical.
+   * on-chain — lowest was chosen for stability over time, not because it is
+   * confirmed canonical.
    */
   numbers?: number[]
   /** How strongly the value is proven. `'none'` = read, not Merkle-verified. */
