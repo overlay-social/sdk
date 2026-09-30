@@ -1,0 +1,17 @@
+# Secret-scanner settings for this repository (gitleaks). The default rules
+# apply; the allowlist below only exempts values that are public by definition.
+#
+# Test fixtures carry secp256k1 public keys and P2PKH addresses in fields named
+# `key` or `identityKey`, which the generic API-key rule mistakes for secrets.
+# A compressed public key (66 hex, 02/03 prefix) and a base58 address are
+# published on-chain; private keys and WIF strings are NOT exempted.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public keys and P2PKH addresses"
+regexTarget = "secret"
+regexes = [
+  '''^0[23][0-9a-fA-F]{64}$''',
+  '''^1[1-9A-HJ-NP-Za-km-z]{25,34}$''',
+]

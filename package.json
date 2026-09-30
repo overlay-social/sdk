@@ -51,7 +51,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "check:exports": "node scripts/check-exports.mjs",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:exports",
+    "sync:peck-view": "node scripts/sync-peck-view.mjs",
+    "check:peck-view": "node scripts/sync-peck-view.mjs --check",
+    "verify": "npm run lint && npm run typecheck && npm run check:peck-view && npm run test && npm run build && npm run check:exports",
     "prepublishOnly": "npm run verify"
   },
   "keywords": [
@@ -65,7 +67,11 @@
   ],
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.43",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "eslint": "^9.39.5",
+    "json-schema-to-typescript": "^16.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.5",
     "typescript-eslint": "^8.71.0",

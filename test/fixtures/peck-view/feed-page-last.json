@@ -1,0 +1,59 @@
+{
+  "items": [
+    {
+      "txid": "1111111111111111111111111111111111111111111111111111111111111111",
+      "type": "post",
+      "kind": null,
+      "app": "treechat",
+      "author": {
+        "key": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "address": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "identityKey": null,
+        "handle": null,
+        "displayName": "marcus",
+        "nameSource": "tx",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK?seed=14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "paymail": null,
+        "custodialRelay": "treechat.io",
+        "external": null
+      },
+      "createdAt": "2026-09-29T21:14:03Z",
+      "blockHeight": 918150,
+      "text": "What is everyone building this week?",
+      "mediaType": "text/plain",
+      "textTruncated": false,
+      "textLength": 36,
+      "media": [],
+      "tags": [
+        "building"
+      ],
+      "channel": null,
+      "geo": null,
+      "parentTxid": null,
+      "threadRootTxid": null,
+      "parent": null,
+      "refTxid": null,
+      "refKind": null,
+      "ref": null,
+      "counts": {
+        "likes": 3,
+        "replies": 1,
+        "reposts": 0,
+        "quotes": 0,
+        "tipSats": 0,
+        "lockedSats": 0,
+        "powBits": 0
+      },
+      "provenance": {
+        "grade": "custodial",
+        "aipVerified": true,
+        "nameInTx": "marcus"
+      },
+      "paywalled": false
+    }
+  ],
+  "next": null
+}

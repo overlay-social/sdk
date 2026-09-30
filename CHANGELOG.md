@@ -19,9 +19,22 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   plain-script client it replaces, with unit tests for the message protocol.
 - `@overlay-social/sdk/peckos/browser`: the same module as one self-contained
   ES module (`dist/peckos.browser.js`) for pages without a build step.
+- `createReadClient()` in `@overlay-social/sdk/read` (and the package root):
+  a typed client for the overlay's `/v2` read model (peck-view/v1 contract):
+  `feed`, `post`, `profile`, `posts` (chunked at 100), `viewerState` (chunked
+  at 200) and `search`. Structured `next` cursor, injectable `fetch`,
+  per-call `AbortSignal`, and a typed `ReadError` for every failure.
+- The peck-view/v1 view types (`PostView`, `AuthorView`, `ThreadView`,
+  `ProfileView`, `FeedPage`, `PostBatch`, `ViewerState`, …), generated from a
+  vendored copy of the contract schema, with `npm run sync:peck-view` to
+  refresh it and `npm run check:peck-view` (in CI) to catch stale types.
+- Contract tests: every contract example validates against the schema and
+  round-trips through the client; a live smoke test runs when
+  `PECK_VIEW_LIVE` is set.
 
 ### Changed
 - Build is configured in `tsup.config.ts` with one entry per subpath.
+- The `/v1` client moved to `src/read/v1.ts`; its exports are unchanged.
 
 ## 0.3.0 — 2026-07-29
 
