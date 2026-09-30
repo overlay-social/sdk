@@ -85,6 +85,24 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `ReactionKind`, `ReactionsQuery`, `AppsQuery`, `reactionsSearchParams`,
   `appsSearchParams`.
 
+- `@overlay-social/sdk/dm`: end-to-end encrypted direct messages,
+  compatible with peck.to in both directions. Envelopes
+  (`{v, from, to, ciphertext, sentAt, ...extra}`, BRC-2 encryption by the
+  wallet under `[2, 'peck dm']`, key ID `'1'`): `buildEnvelope`,
+  `openEnvelope`, `parseEnvelope`, `encryptText`, `decryptText`,
+  `envelopePeer`, and `envelopeMessage` for the on-chain copy (the Bitcoin
+  Schema layout peck.to writes). `createDmClient()` speaks the message box
+  API (`/sendMessage`, `/listMessages`, `/acknowledgeMessage`) over
+  BRC-103/104 `AuthFetch`: `send`, `sendEnvelope` (message id = txid),
+  `sendRaw`, `list`, `listRows`, `openRow`, `ack`, overlay discovery of
+  advertised hosts (`ls_messagebox`), and live delivery through an injected
+  `AuthSocketClient` (`listen`, `sendLive`, `sendTyping`, `sendReceipt`,
+  `parseSignal`). Reads both the current single-layer format and the older
+  one wrapped in the message box's own encryption layer. Tests replay
+  envelopes, requests and rows recorded from peck.to's deployed DM client.
+- `@bsv/authsocket-client` as an optional peer dependency (live DM delivery)
+  and a dev dependency (type check of the socket factory).
+
 ### Changed
 - Build is configured in `tsup.config.ts` with one entry per subpath.
 - The `/v1` client moved to `src/read/v1.ts`; its exports are unchanged.

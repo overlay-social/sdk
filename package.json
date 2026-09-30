@@ -47,6 +47,10 @@
       "import": "./dist/sanitize.browser.js",
       "default": "./dist/sanitize.browser.js"
     },
+    "./dm": {
+      "types": "./dist/dm.d.ts",
+      "import": "./dist/dm.js"
+    },
     "./peckos": {
       "types": "./dist/peckos.d.ts",
       "import": "./dist/peckos.js"
@@ -95,6 +99,7 @@
     "marked": "^15.0.12"
   },
   "devDependencies": {
+    "@bsv/authsocket-client": "^2.1.7",
     "@eslint/js": "^9.39.5",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^20.19.43",
@@ -109,9 +114,13 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
+    "@bsv/authsocket-client": "^2.1.4",
     "jsdom": ">=26"
   },
   "peerDependenciesMeta": {
+    "@bsv/authsocket-client": {
+      "optional": true
+    },
     "jsdom": {
       "optional": true
     }
