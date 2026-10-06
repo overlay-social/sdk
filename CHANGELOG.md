@@ -125,6 +125,18 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   - Tests replay `fixtures/schema/v1-parity.json`, which holds the scripts
     v1's own code produces (`scripts/gen-v1-parity-fixtures.mjs` regenerates
     it); the builders match them byte for byte, signatures included.
+- `@overlay-social/sdk/submit`: `submitToOverlay()` sends a signed transaction
+  from the browser to the overlay's `POST /submit` (BEEF body, topics in the
+  `x-topics` header) and returns the overlay's admittance result
+  (`{ txid, topics, steak, admitted, admittedTopics }`). It takes a
+  `createAction` result, BEEF as bytes or hex, or a `Transaction`; the default
+  topic is `tm_social-content` and `OVERLAY_TOPICS` names the others
+  (`identityProfile`, `identityHandle`, `keyBinding`, `friend`). Every failure
+  is an `OverlaySubmitError` with a `code` (`invalid_input`, `no_transaction`,
+  `network`, `timeout`, `unsupported_topic`, `spv_failed`, `rejected`,
+  `server`, `invalid_response`, `not_admitted`). No server, queue or
+  database in between. Tests run against a mocked fetch and against a mock
+  overlay over real HTTP.
 
 ### Changed
 - `identity`: `monogram()` follows peck.to's rule: the first letter or digit

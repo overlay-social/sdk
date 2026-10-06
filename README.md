@@ -253,6 +253,7 @@ separate ESM entry point with its own type declarations).
 | `@overlay-social/sdk/read` | Typed read clients for the overlay: `/v2` read model (recommended) and the `/v1` facade (same surface as the package root) | available |
 | `@overlay-social/sdk/schema` | Builders for B / MAP / AIP transaction outputs, signed through a BRC-100 wallet | available |
 | `@overlay-social/sdk/wallet` | Connect to a BRC-100 wallet through the available substrates, with one normalised error shape | available |
+| `@overlay-social/sdk/submit` | Send a signed transaction from the browser to the overlay, with a typed error for every failure | available |
 | `@overlay-social/sdk/identity` | The rules for showing an author: display name, handle, short key and avatar URL, the same ones the overlay applies | available |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for chain content: markdown to safe HTML for browsers and server rendering | available |
 | `@overlay-social/sdk/dm` | End-to-end encrypted direct messages: BRC-42 envelopes and a message-box client, compatible with peck.to | available |
@@ -381,13 +382,14 @@ overlay resolves.
 
 ```ts
 import { identityProfile, toLockingScript, verifyIdentityProfile } from '@overlay-social/sdk/schema'
+import { OVERLAY_TOPICS, submitToOverlay } from '@overlay-social/sdk/submit'
 
 const p = await identityProfile({ displayName: 'Ada', avatar: 'https://example.com/ada.png', bio: 'First programmer.' }, { wallet })
-await wallet.createAction({
+const action = await wallet.createAction({
   description: 'Set profile',
   outputs: [{ lockingScript: toLockingScript(p).toHex(), satoshis: 0, outputDescription: 'identity-profile' }],
 })
-// submit the transaction to the overlay with topic tm_identity-profile
+await submitToOverlay(action, { topics: [OVERLAY_TOPICS.identityProfile] }) // see Sending to the overlay
 verifyIdentityProfile(toLockingScript(p)) // { identity, fields, valid: true }
 ```
 
@@ -506,6 +508,87 @@ the `cause`, and a local wallet's HTTP `status` and error fields are attached.
 `classifyWalletError()` and `normalizeWalletError()` work on any value. They
 read error codes and message text in English and Norwegian, never call
 arguments.
+
+## Sending to the overlay (`/submit`)
+
+The wallet signs, pays and broadcasts (`createAction`). `submitToOverlay()` then
+hands the same transaction to the overlay, so it is admitted and indexed now
+instead of whenever a chain scan reaches it. It goes from the browser straight
+to `POST https://overlay.peck.to/submit`: no server, queue or database in
+between, and nothing it sends needs a login.
+
+```ts
+import { connect } from '@overlay-social/sdk/wallet'
+import { post, signPayload } from '@overlay-social/sdk/schema'
+import { OVERLAY_TOPICS, OverlaySubmitError, submitToOverlay } from '@overlay-social/sdk/submit'
+
+const wallet = await connect({ originator: 'example.com' })
+const record = await signPayload(post({ app: 'example.com', text: 'gm' }), { wallet })
+const action = await wallet.createAction({
+  description: 'Post',
+  outputs: [{ lockingScript: record.toHex(), satoshis: 0, outputDescription: 'Post' }],
+})
+
+try {
+  const { txid, admittedTopics } = await submitToOverlay(action) // default topic: tm_social-content
+  goTo(`/tx/${txid}`)
+} catch (e) {
+  if (!(e instanceof OverlaySubmitError)) throw e
+  if (e.code === 'network' || e.code === 'timeout' || e.code === 'server') offerRetry()
+  else showError(e.message)
+}
+```
+
+It takes what `createAction` returns, the transaction as BEEF (bytes or hex),
+or an `@bsv/sdk` `Transaction` whose inputs carry their source transactions. A
+raw transaction without its ancestors is refused before anything is sent: the
+overlay needs the merkle proofs. If the wallet kept the transaction to itself
+(it returned no `tx`), the call throws `no_transaction`; the overlay picks the
+transaction up from the chain later.
+
+**Which topic.** The topics say which overlay service indexes the record:
+
+| Record | Topic | Constant |
+| --- | --- | --- |
+| `post`, `reply`, `quote`, `repost`, `like`, `unlike`, `follow`, `unfollow`, `message`, `payment` (a tip) | `tm_social-content` (the default) | `OVERLAY_TOPICS.content` |
+| `identityProfile()` | `tm_identity-profile` | `OVERLAY_TOPICS.identityProfile` |
+| an identity handle claim | `tm_identity-handle` | `OVERLAY_TOPICS.identityHandle` |
+| a key binding | `tm_key-binding` | `OVERLAY_TOPICS.keyBinding` |
+| a friend request or withdrawal | `tm_social-friend` | `OVERLAY_TOPICS.friend` |
+
+`peck-schema` is the old name of the same topic manager as
+`tm_social-content` (`OVERLAY_TOPICS.contentLegacy`). One transaction can go to
+several topics at once: `topics: [OVERLAY_TOPICS.keyBinding, OVERLAY_TOPICS.identityProfile]`.
+
+**The result** is the overlay's own admittance result:
+`{ txid, topics, steak, admitted, admittedTopics }`, where `steak` maps each
+topic to the output indexes it admitted. The overlay answers as soon as it has
+decided, and indexes right after, so a read of the same record immediately
+afterwards can still be empty. Show the new record optimistically.
+
+**Errors.** Every failure is an `OverlaySubmitError` with a `code` and, when
+there was an answer, the HTTP `status`:
+
+| `code` | Meaning |
+| --- | --- |
+| `invalid_input` | Nothing was sent: not BEEF, unusable topics or URL |
+| `no_transaction` | Nothing was sent: the wallet result carried no transaction |
+| `network` | No answer: offline, DNS, CORS, refused (the `cause` is kept) |
+| `timeout` | No answer within `timeoutMs` (default 30000) |
+| `unsupported_topic` | The overlay does not run a topic you named |
+| `spv_failed` | The overlay could not verify the transaction (merkle proofs, source transactions, scripts). A bad merkle path can be transient right after a block |
+| `rejected` | The overlay refused the request (HTTP 4xx) |
+| `server` | The overlay or the proxy failed (HTTP 5xx) |
+| `invalid_response` | A 2xx answer that is not an admittance result |
+| `not_admitted` | The overlay took the transaction but no topic admitted any output (`error.steak` has the result) |
+
+`not_admitted` also covers a transaction the overlay has already admitted: it
+answers a repeat submission with an empty result. Pass
+`requireAdmission: false` to get that result back instead of an error. Aborting
+through `signal` rejects with the signal's own reason, like `fetch`.
+
+Options: `topics`, `overlayUrl` (default `https://overlay.peck.to`), `fetch`,
+`timeoutMs`, `signal`, `requireAdmission`.
 
 ## Showing an author (`/identity`)
 
