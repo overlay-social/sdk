@@ -37,6 +37,10 @@
       "types": "./dist/wallet.d.ts",
       "import": "./dist/wallet.js"
     },
+    "./submit": {
+      "types": "./dist/submit.d.ts",
+      "import": "./dist/submit.js"
+    },
     "./sanitize": {
       "types": "./dist/sanitize.d.ts",
       "browser": "./dist/sanitize.web.js",

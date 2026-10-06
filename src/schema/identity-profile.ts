@@ -119,7 +119,7 @@ const toHex = (bytes: readonly number[]) => Utils.toHex([...bytes])
 /**
  * Build and sign an identity profile through the wallet. The wallet shows the
  * signature request; nothing is sent. Give the script to `createAction` (one
- * zero-satoshi output) and submit the transaction to the overlay topic
+ * zero-satoshi output) and submit the transaction with `submitToOverlay()` to the topic
  * `tm_identity-profile`.
  *
  *   const profile = await identityProfile({ displayName, avatar, bio }, { wallet })

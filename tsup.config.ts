@@ -10,6 +10,7 @@ export default defineConfig({
     identity: 'src/identity/index.ts',
     schema: 'src/schema/index.ts',
     wallet: 'src/wallet/index.ts',
+    submit: 'src/submit/index.ts',
     sanitize: 'src/sanitize/index.ts',
     'sanitize.web': 'src/sanitize/web.ts',
     peckos: 'src/peckos/index.ts',
