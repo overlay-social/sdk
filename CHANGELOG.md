@@ -108,6 +108,23 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `lenses({ issuer, scope, limit })` (`GET /v2/lenses`, `LensList`). New
   exports: `ChannelsQuery`, `IdentitiesQuery`, `LensesQuery`,
   `channelsSearchParams`, `identitiesSearchParams`, `lensesSearchParams`.
+- `schema`: tips and identity profiles.
+  - `payment({ app, targetTxid, recipient, amount })`: the social record of
+    a tip, `MAP SET app type payment tx paymail value`, laid out as the
+    peck.to v1 client writes it. `brc29Output(wallet, { recipientIdentityKey,
+    satoshis })` builds the matching standard BRC-29 payment output to the
+    author's identity key (not v1's plain payment to the post's signing
+    address), with the remittance the recipient's wallet needs. Neither sets a
+    fee rate: the user's wallet chooses it.
+  - `identityProfile({ displayName?, avatar?, bio? }, { wallet })`: a
+    peck-identity-v1 profile, a port of v1's `setIdentityProfile`. The
+    identity key signs the record itself (BRC-3, protocol `[1, 'profile']`,
+    random serial as key ID); the overlay admits it into `tm_identity-profile`.
+    `verifyIdentityProfile(script)` checks one. This is not the older
+    `profile()` builder (an AIP-signed `type profile` record).
+  - Tests replay `fixtures/schema/v1-parity.json`, which holds the scripts
+    v1's own code produces (`scripts/gen-v1-parity-fixtures.mjs` regenerates
+    it); the builders match them byte for byte, signatures included.
 
 ### Changed
 - `identity`: `monogram()` follows peck.to's rule: the first letter or digit

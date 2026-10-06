@@ -292,6 +292,7 @@ await wallet.createAction({
 | `follow` / `unfollow({ app, address, handle? })` | `MAP SET type follow\|unfollow [handle] address` |
 | `tag({ app, targetTxid, tags, category?, lang?, tone? })` | `MAP SET type tag context tx tx <target> tags a,b` |
 | `message({ app, text, channel? \| recipient? })` | B `text/plain` + `MAP SET type message` |
+| `payment({ app, targetTxid, recipient, amount })` | `MAP SET type payment tx <post> paymail <recipient> value <sats>` (see [Tips](#tips-and-identity-profiles)) |
 | `profile({ app, displayName, avatar?, bio?, certRef? })` | `MAP SET type profile display_name …` |
 
 Builders are pure and synchronous and return a `SchemaPayload`. They reject
@@ -343,6 +344,52 @@ MAP sections, each separator as the byte `0x7c`, then the AIP prefix, `BRC77`
 and the key. Length prefixes and the signature push are not included. The
 digest is one SHA-256, and the script carries the DER signature in base64.
 `verifyAip(script)` checks it. Details are in `src/schema/aip.ts`.
+
+### Tips and identity profiles
+
+A tip is one transaction with two outputs: the social record, and the money.
+The record is `payment()`, signed with `signPayload()` like any other. The
+money is a standard BRC-29 payment to the author's BRC-100 identity key (the
+`identityKey` the overlay returns for each author), built by `brc29Output()`.
+It is not a plain payment to the address a post was signed with: BRC-100
+wallets do not track those coins. Neither call sets a fee rate; the wallet
+chooses it.
+
+```ts
+import { brc29Output, payment, signPayload } from '@overlay-social/sdk/schema'
+
+const record = await signPayload(payment({ app: 'peck.to', targetTxid, recipient: identityKey, amount: 500 }), { wallet })
+const pay = await brc29Output(wallet, { recipientIdentityKey: identityKey, satoshis: 500 })
+await wallet.createAction({
+  description: 'Tip',
+  outputs: [
+    { lockingScript: record.toHex(), satoshis: 0, outputDescription: 'Tip record' },
+    { lockingScript: pay.lockingScript, satoshis: pay.satoshis, outputDescription: pay.outputDescription, customInstructions: pay.customInstructions },
+  ],
+  options: { randomizeOutputs: false },
+})
+// then hand the transaction and pay.remittance to the recipient (PeerPay / MessageBox)
+```
+
+`identityProfile()` writes a peck-identity-v1 profile: a MAP `type profile`
+record that the identity key signs itself (BRC-3, protocol `[1, 'profile']`,
+a random serial as key ID, counterparty `anyone`), with no AIP section. The
+overlay reads the newest one per identity, so each record replaces the whole
+profile. It is async because the wallet signs inside the record. The older
+`profile()` builder is a different record; use this one for a profile the
+overlay resolves.
+
+```ts
+import { identityProfile, toLockingScript, verifyIdentityProfile } from '@overlay-social/sdk/schema'
+
+const p = await identityProfile({ displayName: 'Ada', avatar: 'https://example.com/ada.png', bio: 'First programmer.' }, { wallet })
+await wallet.createAction({
+  description: 'Set profile',
+  outputs: [{ lockingScript: toLockingScript(p).toHex(), satoshis: 0, outputDescription: 'identity-profile' }],
+})
+// submit the transaction to the overlay with topic tm_identity-profile
+verifyIdentityProfile(toLockingScript(p)) // { identity, fields, valid: true }
+```
 
 ## Sanitising chain content (`/sanitize`)
 
