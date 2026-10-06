@@ -79,7 +79,8 @@ export function aipPreimage(p: SchemaPayload, signingKey: string): number[] {
   return out
 }
 
-function signatureBytes(sig: unknown): number[] {
+/** A wallet's DER signature as bytes: accepts an array, a Uint8Array or a hex string. */
+export function signatureBytes(sig: unknown): number[] {
   if (Array.isArray(sig)) return sig as number[]
   if (sig instanceof Uint8Array) return Array.from(sig)
   if (typeof sig === 'string' && /^[0-9a-fA-F]+$/.test(sig) && sig.length % 2 === 0) return Utils.toArray(sig, 'hex')

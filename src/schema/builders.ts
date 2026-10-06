@@ -113,6 +113,19 @@ export interface TagInput extends BaseInput {
   tone?: string
 }
 
+export interface PaymentInput extends BaseInput {
+  /** The post the payment is for (MAP `tx`). */
+  targetTxid: string
+  /**
+   * Who is paid, written as MAP `paymail` (the field v1 uses). v2 passes the
+   * author's BRC-100 identity key; v1 passed the post's signing address. The
+   * value is carried as given and nothing reads it back today.
+   */
+  recipient: string
+  /** Satoshis paid: a whole number, 1 or more. Written as MAP `value`. */
+  amount: number
+}
+
 export interface MessageInput extends BaseInput {
   text: string
   /** A public channel. Leave both `channel` and `recipient` out for the global room. */
@@ -311,6 +324,27 @@ export function tag(input: TagInput): SchemaPayload {
     if (v) extra.push(key, v.toLowerCase())
   }
   return mapOnly(input.app, 'tag', ['context', 'tx', 'tx', target, 'tags', noSeparator('tags', tags.join(',')), ...extra])
+}
+
+/**
+ * The social record of a tip: `SET app <app> type payment tx <post> paymail
+ * <recipient> value <sats>`, laid out as the peck.to v1 client writes it. It
+ * says that this transaction pays for that post. The money moves in the other
+ * outputs of the same transaction; build the payment to the author's identity
+ * key with `brc29Output()`, and give the wallet both outputs in one
+ * `createAction` with no fee rate (the wallet chooses it).
+ *
+ * v1 wrote `tx global` for a tip with no post; this builder needs a post.
+ */
+export function payment(input: PaymentInput): SchemaPayload {
+  if (!Number.isSafeInteger(input.amount) || input.amount < 1) {
+    throw new SchemaError('amount must be a whole number of satoshis, 1 or more')
+  }
+  return mapOnly(input.app, 'payment', [
+    'tx', txid('targetTxid', input.targetTxid),
+    'paymail', required('recipient', input.recipient),
+    'value', String(input.amount),
+  ])
 }
 
 /** A chat message to the global room, a channel, or (in the clear) one recipient. */

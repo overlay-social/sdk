@@ -38,6 +38,7 @@ export {
   hashtags,
   like,
   message,
+  payment,
   pin,
   post,
   profile,
@@ -53,6 +54,7 @@ export {
   type MediaInput,
   type MessageInput,
   type PinCategory,
+  type PaymentInput,
   type PinInput,
   type PostInput,
   type ProfileInput,
@@ -61,6 +63,27 @@ export {
   type TagInput,
   type TargetInput,
 } from './builders.js'
+export {
+  BRC29_PROTOCOL,
+  brc29Output,
+  type Brc29Output,
+  type Brc29OutputInput,
+  type Brc29Remittance,
+  type Brc29Wallet,
+} from './brc29.js'
+export {
+  IDENTITY_PROFILE_APP,
+  IDENTITY_PROFILE_PROTOCOL,
+  IDENTITY_PROFILE_SCHEMA_VERSION,
+  identityProfile,
+  identityProfilePreimage,
+  verifyIdentityProfile,
+  type IdentityProfile,
+  type IdentityProfileCheck,
+  type IdentityProfileInput,
+  type IdentityProfileOptions,
+  type IdentityProfileWallet,
+} from './identity-profile.js'
 export {
   ALT_DECIMALS,
   DEFAULT_GEOHASH_LENGTH,
