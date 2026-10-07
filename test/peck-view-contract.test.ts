@@ -8,10 +8,12 @@ import {
   ReadError,
   createReadClient,
   type AppList,
+  type AuthorList,
   type ChannelList,
   type FeedPage,
   type IdentityList,
   type LensList,
+  type MessagePage,
   type PostBatch,
   type ProfileView,
   type ReactionPage,
@@ -23,12 +25,16 @@ import { PECK_VIEW_FIXTURES, peckViewErrors, type PeckViewTypeName } from './hel
 
 const EXAMPLE_TYPES: Record<string, PeckViewTypeName> = {
   'app-list.json': 'AppList',
+  'author-list-names.json': 'AuthorList',
+  'author-list.json': 'AuthorList',
   'channel-list.json': 'ChannelList',
   'error-response.json': 'ErrorResponse',
   'feed-page-last.json': 'FeedPage',
   'feed-page.json': 'FeedPage',
   'identity-list.json': 'IdentityList',
   'lens-list.json': 'LensList',
+  'message-page-direct.json': 'MessagePage',
+  'message-page.json': 'MessagePage',
   'post-batch-geo.json': 'PostBatch',
   'post-batch.json': 'PostBatch',
   'profile-view.json': 'ProfileView',
@@ -204,6 +210,53 @@ describe('the /v2 client returns each example typed', () => {
     expect(list.items[0]?.issuer.displayName).toBe('Ada')
     expect(list.items[0]?.rules.map((r) => [r.match, r.action])).toEqual([['category', 'hide'], ['app', 'label']])
     expect(calls[0]?.url).toBe(`https://overlay.example/v2/lenses?issuer=${issuer}&scope=curated`)
+  })
+
+  it('messages() -> MessagePage: newest first, a binary body without text, the cursor back unchanged', async () => {
+    const example = load('message-page.json') as MessagePage
+    const { client, calls } = serving(example)
+    const page = await client.messages({ channel: 'mcp-chat', limit: 3 })
+    expect(page).toEqual(example)
+    expect(calls[0]?.url).toBe('https://overlay.example/v2/messages?channel=mcp-chat&limit=3')
+    expect(page.items.map((m) => m.createdAt)).toEqual([...page.items.map((m) => m.createdAt)].sort().reverse())
+    expect(page.items.map((m) => [m.text === null, m.mediaType])).toEqual([[false, 'text/plain'], [false, 'text/markdown'], [true, 'image/png']])
+    expect(page.next).toEqual({ before_ts: '2026-09-30T09:10:58Z', before_txid: 'd3'.repeat(32) })
+    const older = serving(example)
+    await older.client.messages({ channel: 'mcp-chat', limit: 3, cursor: page.next })
+    expect(new URL(older.calls[0]!.url).searchParams.get('before_ts')).toBe('2026-09-30T09:10:58Z')
+    expect(new URL(older.calls[0]!.url).searchParams.get('before_txid')).toBe('d3'.repeat(32))
+  })
+
+  it('messages() -> MessagePage of direct messages: flagged direct, addressed, never in a room', async () => {
+    const example = load('message-page-direct.json') as MessagePage
+    const { client, calls } = serving(example)
+    const recipient = example.items[0]!.recipient!
+    const page = await client.messages({ recipient })
+    expect(page).toEqual(example)
+    expect(calls[0]?.url).toBe(`https://overlay.example/v2/messages?recipient=${recipient}`)
+    expect(page.items[0]).toMatchObject({ direct: true, channel: null, paywalled: false })
+    expect(page.next).toBeNull()
+  })
+
+  it('authors() -> AuthorList, a shared custodial key included', async () => {
+    const example = load('author-list.json') as AuthorList
+    const { client, calls } = serving(example)
+    const list = await client.authors({ limit: 3 })
+    expect(list).toEqual(example)
+    expect(calls[0]?.url).toBe('https://overlay.example/v2/authors?limit=3')
+    expect(list.items[0]?.author.custodialRelay).toBe('treechat.io')
+    expect(list.items.map((i) => i.posts)).toEqual([...list.items.map((i) => i.posts)].sort((a, b) => b - a))
+    expect(list.items.map((i) => i.author.nameSource)).toEqual(['key', 'external', 'key'])
+    expect(list.next).toEqual({ before_posts: 212, before_key: list.items[2]!.author.key })
+    expect(list).toMatchObject({ total: 4893, capped: false })
+  })
+
+  it('authors({ by: "name" }) -> AuthorList of the names behind a shared key', async () => {
+    const example = load('author-list-names.json') as AuthorList
+    const { client, calls } = serving(example)
+    const list = await client.authors({ app: 'treechat', by: 'name' })
+    expect(calls[0]?.url).toBe('https://overlay.example/v2/authors?app=treechat&by=name')
+    expect(list.items[0]?.author).toMatchObject({ displayName: 'marcus', nameSource: 'tx', custodialRelay: 'treechat.io' })
   })
 
   it('ErrorResponse -> ReadError with the contract code', async () => {

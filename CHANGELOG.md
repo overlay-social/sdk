@@ -77,6 +77,17 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 - `/v2` client: `reactions(txid, { kind?, limit?, cursor? })` lists who liked
   or reposted a post (`ReactionPage`), `stats()` returns the site totals
   (`SiteStats`, estimates) and `apps()` the posts per app (`AppList`).
+- `/v2` client: `messages(query)` reads chat history (`MessagePage`): a
+  channel (`channel`), the global chat (`scope: 'global'`), an inbox
+  (`recipient`) or an outbox (`author` alone), newest first with an exact
+  `next` cursor, or oldest first with `order: 'asc'` to ask what arrived
+  since. A query that names nothing is rejected before a request is made.
+  `authors(query)` lists "Across Bitcoin" (`AuthorList`): the authors other
+  apps' posts came from, ranked by post count, optionally for one `app`, or
+  with `by: 'name'` the people behind a shared custodial key. New exports:
+  `MessagesQuery`, `AuthorsQuery`, `messagesSearchParams`,
+  `authorsSearchParams`; the view types `MessagePage`, `MessageView`,
+  `AuthorList` and `AuthorListItem`.
 - `/v2` client: location filters on `feed()`. `hasGeo` keeps posts with a
   location, `bbox: { minLat, minLng, maxLat, maxLng }` a rectangle (latitude
   first; `minLng` greater than `maxLng` crosses the antimeridian) and

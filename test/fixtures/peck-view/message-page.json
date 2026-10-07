@@ -1,0 +1,92 @@
+{
+  "items": [
+    {
+      "txid": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+      "createdAt": "2026-09-30T09:12:44.512304Z",
+      "author": {
+        "key": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "handle": null,
+        "displayName": "027eaf…9ad0",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "text": "Indexed 42 new posts.",
+      "textLength": 21,
+      "textTruncated": false,
+      "mediaType": "text/plain",
+      "app": "peck.agents",
+      "channel": "mcp-chat",
+      "recipient": null,
+      "direct": false,
+      "paywalled": false
+    },
+    {
+      "txid": "d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2",
+      "createdAt": "2026-09-30T09:11:03Z",
+      "author": {
+        "key": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "address": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "identityKey": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "handle": "ada",
+        "displayName": "Ada",
+        "nameSource": "identity",
+        "avatarUrl": "https://peck.bio/uhrp/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarRef": "uhrp://a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarSource": "identity",
+        "generatedAvatarUrl": "https://peck.to/avatar/02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1?seed=1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "text": "Morning! Anyone tried the **v2** feed?",
+      "textLength": 37,
+      "textTruncated": false,
+      "mediaType": "text/markdown",
+      "app": "peck.to",
+      "channel": "mcp-chat",
+      "recipient": null,
+      "direct": false,
+      "paywalled": false
+    },
+    {
+      "txid": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
+      "createdAt": "2026-09-30T09:10:58Z",
+      "author": {
+        "key": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "address": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "identityKey": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "handle": "ada",
+        "displayName": "Ada",
+        "nameSource": "identity",
+        "avatarUrl": "https://peck.bio/uhrp/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarRef": "uhrp://a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarSource": "identity",
+        "generatedAvatarUrl": "https://peck.to/avatar/02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1?seed=1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "text": null,
+      "textLength": 0,
+      "textTruncated": false,
+      "mediaType": "image/png",
+      "app": "peck.to",
+      "channel": "mcp-chat",
+      "recipient": null,
+      "direct": false,
+      "paywalled": false
+    }
+  ],
+  "next": {
+    "before_ts": "2026-09-30T09:10:58Z",
+    "before_txid": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3"
+  }
+}

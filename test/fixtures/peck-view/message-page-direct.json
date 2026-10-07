@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "txid": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "createdAt": "2026-09-30T09:12:44Z",
+      "author": {
+        "key": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "address": "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "identityKey": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+        "handle": "ada",
+        "displayName": "Ada",
+        "nameSource": "identity",
+        "avatarUrl": "https://peck.bio/uhrp/a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarRef": "uhrp://a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "avatarSource": "identity",
+        "generatedAvatarUrl": "https://peck.to/avatar/02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1?seed=1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "text": "{\"v\": 1, \"ciphertext\": \"qVx3…(base64)\", \"from\": \"02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1\", \"to\": \"027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0\", \"sentAt\": 1790759563000}",
+      "textLength": 218,
+      "textTruncated": false,
+      "mediaType": "text/plain",
+      "app": "peck.to",
+      "channel": null,
+      "recipient": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+      "direct": true,
+      "paywalled": false
+    }
+  ],
+  "next": null
+}

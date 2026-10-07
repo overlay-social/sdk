@@ -18,12 +18,14 @@
  */
 import type {
   AppList,
+  AuthorList,
   ChannelList,
   ErrorResponse,
   FeedCursor,
   FeedPage,
   IdentityList,
   LensList,
+  MessagePage,
   PostBatch,
   ProfileView,
   Reaction,
@@ -246,6 +248,63 @@ export interface LensesQuery {
   limit?: number
 }
 
+/**
+ * Query for `messages()`. Name what to read: a room (`channel`, or `scope:
+ * 'global'` for the global chat) or private messages (`recipient`, or `author`
+ * alone). A request that names none of them is rejected: the overlay also holds
+ * direct messages, so there is no unfiltered list.
+ */
+export interface MessagesQuery {
+  /** One channel's chat, matched exactly (case-sensitive). `'global'` is the global chat. */
+  channel?: string
+  /** `'global'`: the global ("Everyone") chat: messages without a channel, and the legacy room `global`. */
+  scope?: 'global'
+  /**
+   * The inbox: private messages addressed to this identity key (a 66-hex public
+   * key is matched in either case). Never combined with `channel` or `scope`.
+   */
+  recipient?: string
+  /**
+   * With a room: that sender's messages in it. With `recipient`: one direction of
+   * a conversation. Alone: the sender's private messages (their outbox). The
+   * sender is the signing key, which for a peck.to direct message is the
+   * address of the AIP key, not the identity key.
+   */
+  author?: string
+  /** 1–100. Overlay default: 50. */
+  limit?: number
+  /**
+   * `desc` (overlay default): newest first, paged toward older messages with
+   * `before_*` cursors. `asc`: oldest first, paged toward newer messages with
+   * `after_*` cursors.
+   */
+  order?: 'desc' | 'asc'
+  /**
+   * Continue after a previous page: pass that page's `next` unchanged, with the
+   * same filters and `order`. Null or absent starts at the newest (`desc`) or
+   * oldest (`asc`) message. With `order: 'asc'`, a cursor built from the newest
+   * message you hold (`{ after_ts: m.createdAt, after_txid: m.txid }`) asks for
+   * what arrived since.
+   */
+  cursor?: FeedCursor | null
+}
+
+/** Query for `authors()`: "Across Bitcoin", the people other apps' posts came from. */
+export interface AuthorsQuery {
+  /** Only this app's posts (`twetch`, `treechat`, …). An app with no posts is an empty list. */
+  app?: string
+  /**
+   * `author` (overlay default): one row per signing key; without `app`, a key's
+   * posts are summed over every app. `name`: needs `app`; for an app whose users
+   * all post through one shared key (treechat), one row per display name.
+   */
+  by?: 'author' | 'name'
+  /** 1–100. Overlay default: 50. */
+  limit?: number
+  /** Continue after a previous page: pass that page's `next` unchanged, with the same filters. */
+  cursor?: FeedCursor | null
+}
+
 /** Per-call options. */
 export interface ReadRequestOptions {
   /** Aborts the request (and every chunk of a chunked call). */
@@ -378,6 +437,33 @@ export function lensesSearchParams(query: LensesQuery = {}): URLSearchParams {
   })
 }
 
+/** The query string for `GET /v2/messages`. */
+export function messagesSearchParams(query: MessagesQuery): URLSearchParams {
+  const qs = toSearchParams({
+    channel: query.channel?.trim(),
+    scope: query.scope,
+    recipient: query.recipient?.trim(),
+    author: query.author?.trim(),
+    limit: limitParam(query.limit),
+    order: query.order,
+  })
+  // The cursor's keys follow the direction (before_ts + before_txid, or after_ts + after_txid); send them back as given.
+  for (const [k, v] of Object.entries(query.cursor ?? {})) qs.set(k, String(v))
+  return qs
+}
+
+/** The query string for `GET /v2/authors`. */
+export function authorsSearchParams(query: AuthorsQuery = {}): URLSearchParams {
+  const qs = toSearchParams({
+    app: query.app?.trim(),
+    by: query.by,
+    limit: limitParam(query.limit),
+  })
+  // before_posts + before_key, sent back as given.
+  for (const [k, v] of Object.entries(query.cursor ?? {})) qs.set(k, String(v))
+  return qs
+}
+
 function toSearchParams(p: Params): URLSearchParams {
   const qs = new URLSearchParams()
   for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') qs.set(k, v)
@@ -410,6 +496,10 @@ const isChannelList = (b: unknown): b is ChannelList =>
 const isIdentityList = (b: unknown): b is IdentityList =>
   isObject(b) && Array.isArray(b.items) && typeof b.total === 'number'
 const isLensList = (b: unknown): b is LensList => isObject(b) && Array.isArray(b.items)
+const isMessagePage = (b: unknown): b is MessagePage =>
+  isObject(b) && Array.isArray(b.items) && (b.next === null || isObject(b.next))
+const isAuthorList = (b: unknown): b is AuthorList =>
+  isObject(b) && Array.isArray(b.items) && typeof b.total === 'number' && typeof b.capped === 'boolean'
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -621,6 +711,51 @@ export class ReadClient {
     }
     const qs = lensesSearchParams(query).toString()
     return this.request('GET', `/v2/lenses${qs ? `?${qs}` : ''}`, undefined, isLensList, opts)
+  }
+
+  /**
+   * `GET /v2/messages`: chat history, a page at a time. Name what to read: a
+   * room (`channel`, or `scope: 'global'` for the global chat) or private
+   * messages (`recipient` for an inbox; `author` alone for an outbox). A query
+   * that names none of them is rejected here without a request.
+   *
+   * The first page is the newest messages, newest first: render them
+   * oldest-first by reversing `items`, and load older ones with
+   * `{ cursor: page.next }` (`next` is null exactly when nothing older is
+   * left). To ask what arrived since, pass `order: 'asc'` with a cursor built
+   * from the newest message you hold (see `MessagesQuery.cursor`).
+   *
+   * A direct message's `text` is whatever its sender wrote, normally an
+   * encrypted envelope: open it with `@overlay-social/sdk/dm`. Authors are
+   * baked like post authors. Paywalled channel messages come back with
+   * `text: null` and `paywalled: true`.
+   */
+  messages(query: MessagesQuery, opts?: ReadRequestOptions): Promise<MessagePage> {
+    const named = [query.channel, query.scope, query.recipient, query.author].some((v) => typeof v === 'string' && v.trim() !== '')
+    if (!named) {
+      return Promise.reject(new ReadError('bad_request', 0, '/v2/messages', 'name what to read: channel, scope: "global", recipient or author'))
+    }
+    return this.request('GET', `/v2/messages?${messagesSearchParams(query).toString()}`, undefined, isMessagePage, opts)
+  }
+
+  /**
+   * `GET /v2/authors`: "Across Bitcoin", the authors whose public posts the
+   * overlay indexes from other apps (twetch, treechat, …), whether or not they
+   * claimed a peck identity, most posts first. Each row is an `AuthorView`
+   * with its post count. A shared custodial key (treechat's relay) is one row
+   * with `author.custodialRelay` set, the app rather than a person; list the
+   * people behind it with `{ app: 'treechat', by: 'name' }`. The ranking is a
+   * snapshot (`asOf`), at most 5000 rows (`total`, `capped`). Page on with
+   * `query.cursor = page.next`. Right after the overlay starts the first
+   * snapshot may still be loading: that is a `ReadError` with code `timeout`
+   * and status 503; retry in a few seconds.
+   */
+  authors(query: AuthorsQuery = {}, opts?: ReadRequestOptions): Promise<AuthorList> {
+    if (query.by === 'name' && !(query.app && query.app.trim())) {
+      return Promise.reject(new ReadError('bad_request', 0, '/v2/authors', 'by: "name" needs an app'))
+    }
+    const qs = authorsSearchParams(query).toString()
+    return this.request('GET', `/v2/authors${qs ? `?${qs}` : ''}`, undefined, isAuthorList, opts)
   }
 
   // -- transport ---------------------------------------------------
