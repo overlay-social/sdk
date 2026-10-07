@@ -5,7 +5,7 @@
  * (src/read/peck-view/peck-view.schema.json). Do not edit by hand: re-run
  * `npm run sync:peck-view -- <path to the contract schema>`.
  *
- * Contract source sha256: 239622895fb0d33b1fad9200d417f2c9a30f6f05c5db73b92a4aeb47b41bff31
+ * Contract source sha256: be300305ccc3bda9e272f4f4a7660988941ce4f2e28d05e78461c00469988f36
  */
 
 /**
@@ -21,7 +21,9 @@ export type PeckView =
   | ReactionPage
   | SiteStats
   | ChannelList
+  | MessagePage
   | IdentityList
+  | AuthorList
   | LensList
   | ErrorResponse
 /**
@@ -721,6 +723,66 @@ export interface ChatRoom {
   lastAt: string | null
 }
 /**
+ * One page of chat messages (GET /v2/messages), a page at a time (limit 1-100, default 50). The default order is newest first, so the first page is the latest conversation: render it oldest-first by reversing `items`, and send `next` to load the page before it ("load older"). With order=asc the page runs oldest first from a given point, which is how a client asks "what is new since my last message". There is no total count by design. Only public chain data is listed; direct messages are the on-chain records (their text is as written by the sender, normally ciphertext).
+ */
+export interface MessagePage {
+  /**
+   * The messages on this page, in the order asked for: newest first by default, oldest first with order=asc.
+   */
+  items: MessageView[]
+  /**
+   * Cursor for the next page in the direction of travel, in the same structured form as FeedPage.next: before_ts with before_txid (older messages, order=desc), after_ts with after_txid (newer messages, order=asc). Send it back unchanged with the same filters. Null exactly when there are no more messages in that direction.
+   */
+  next: FeedCursor | null
+}
+/**
+ * One chat message: written to a channel or to the global chat, or sent privately to one recipient. Built from the message transaction (MAP type=message). Nothing here depends on the viewer. A direct (private) message carries whatever its sender wrote: clients that encrypt their direct messages (peck.to does) put the ciphertext in `text`, and the overlay never decrypts or inspects it.
+ */
+export interface MessageView {
+  txid: Txid
+  /**
+   * When the message was indexed, ISO 8601 in UTC with a trailing Z. Messages are ordered by this time, ties by txid.
+   */
+  createdAt: string
+  author: AuthorView
+  /**
+   * The message body: MAP content, falling back to the B content. Null when the body is binary media (see `mediaType`) or withheld by the paywall. Untrusted user input: sanitize before rendering it as markup.
+   */
+  text: string | null
+  /**
+   * Length of the full text in characters (Unicode code points), before truncation. 0 when `text` is null.
+   */
+  textLength: number
+  /**
+   * True when `text` was cut to the response limit of 65536 characters (Unicode code points).
+   */
+  textTruncated: boolean
+  /**
+   * B-protocol media type of the body as written on-chain (text/plain, text/markdown, image/jpeg, …). Null when unset.
+   */
+  mediaType: string | null
+  /**
+   * The MAP app that wrote the transaction (peck.to, bitchat, …). Null when unset. Agents and bots usually write from their own app name.
+   */
+  app: string | null
+  /**
+   * The channel the message was written to, as written (case-sensitive; a channel name is not always a ChannelName). Null for the global chat (a message without a channel, or in the legacy room `global`) and for direct messages.
+   */
+  channel: string | null
+  /**
+   * For a direct message, the identity key it is addressed to, exactly as written on-chain (the MAP bapID). Null for a message to a channel or to the global chat.
+   */
+  recipient: string | null
+  /**
+   * True for a private message: one addressed to a recipient. Direct messages are only listed when the request names a recipient or an author without a room, never in a channel or in the global chat.
+   */
+  direct: boolean
+  /**
+   * True when the overlay withheld the text because the operator's paywall covers channel messages (text null). /v2 never unlocks content per viewer, and direct messages are never paywalled. The paywall is disabled in production, so this is false today.
+   */
+  paywalled: boolean
+}
+/**
  * The identities on the overlay, newest first (GET /v2/identities): who is on peck. An identity is a BRC-100 identity key that has published a profile. A key that is bound to another identity as one of its signing keys is folded into that identity and not listed on its own. Every item is baked exactly like a post author, so the name, handle and picture match that person's posts. An identity that published no name and holds no handle carries the shortened key as displayName (nameSource key): render it as a wallet identity.
  */
 export interface IdentityList {
@@ -732,6 +794,49 @@ export interface IdentityList {
    * How many identities the overlay lists in all, not the size of this page.
    */
   total: number
+}
+/**
+ * Authors whose public, on-chain posts the overlay indexes, ranked by how much they posted (GET /v2/authors): the people "across Bitcoin", from twetch, treechat and the other apps that write the same schema, whether or not they ever claimed a peck identity (see IdentityList for those). A snapshot of the ranking is refreshed about every ten minutes; `asOf` says when. Only the top 5000 of a ranking are listed (a discovery surface, not a census). Rows the overlay operator hides from every feed are left out, so a listed row does not open on an empty feed. Keyset paged. An overlay that has not finished computing its first snapshot answers 503 with the `timeout` error code: retry in a few seconds.
+ */
+export interface AuthorList {
+  /**
+   * The authors on this page, most posts first, ties by key in byte order (by name when by=name).
+   */
+  items: AuthorListItem[]
+  /**
+   * Cursor for the next page, in the same structured form as FeedPage.next: before_posts with before_key (the last row's post count and its key, or its name with by=name). Send it back unchanged with the same filters. Null exactly when this is the last page.
+   */
+  next: FeedCursor | null
+  /**
+   * How many rows the ranking holds for these filters, as of `asOf`: at most 5000 (see `capped`), not a census of everyone.
+   */
+  total: number
+  /**
+   * True when the ranking had more rows than it lists and was cut to the 5000 with most posts.
+   */
+  capped: boolean
+  /**
+   * When the ranking was computed, ISO 8601 in UTC with a trailing Z. Counts and order are as old as this.
+   */
+  asOf: string
+}
+/**
+ * One author in the ranked author list: who they are and how much they have posted.
+ */
+export interface AuthorListItem {
+  author: AuthorView
+  /**
+   * How many posts, replies and reposts the row has written (likes, follows and other non-content records are not counted), as of AuthorList.asOf. Limited to one app when the request named `app`.
+   */
+  posts: number
+  /**
+   * When the latest of those posts was indexed, ISO 8601 in UTC with a trailing Z. Null only when none of them carries a time.
+   */
+  lastPostAt: string | null
+  /**
+   * The MAP app the row posts from: the requested `app`, or, without one, the app that has most of the key's posts (ties by name). Null when the posts name no app.
+   */
+  app: string | null
 }
 /**
  * The published moderation lenses (GET /v2/lenses), newest first, for a lens picker. Nothing here depends on the viewer. A lens changes only when its issuer publishes a new version.

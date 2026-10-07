@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "author": {
+        "key": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "address": "14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "identityKey": null,
+        "handle": null,
+        "displayName": "marcus",
+        "nameSource": "tx",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK?seed=14aqJ2hMtENYJVCJaekcrqi12fiZJzoWGK",
+        "paymail": null,
+        "custodialRelay": "treechat.io",
+        "external": null
+      },
+      "posts": 4210,
+      "lastPostAt": "2026-09-30T08:41:12.250114Z",
+      "app": "treechat"
+    }
+  ],
+  "next": null,
+  "total": 1,
+  "capped": false,
+  "asOf": "2026-09-30T09:10:00Z"
+}

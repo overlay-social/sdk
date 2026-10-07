@@ -58,6 +58,8 @@ per-viewer read is `viewerState()`.
 | `channels({ limit? })` | `GET /v2/channels` | `ChannelList`: channels by recent posts (`posting`) and chat rooms by latest message (`rooms`) |
 | `identities({ limit? })` | `GET /v2/identities` | `IdentityList`: who is on peck, newest first, each an `AuthorView`, plus the `total` |
 | `lenses({ issuer?, scope?, limit? })` | `GET /v2/lenses` | `LensList`: published moderation lenses, newest first, the issuer an `AuthorView` |
+| `messages({ channel? \| scope? \| recipient? \| author?, limit?, order?, cursor? })` | `GET /v2/messages` | `MessagePage`: chat history of a channel, the global chat or a private conversation, newest first, each message with a baked `author` |
+| `authors({ app?, by?, limit?, cursor? })` | `GET /v2/authors` | `AuthorList`: "Across Bitcoin", the authors other apps' posts came from, most posts first, each an `AuthorView` with its post count |
 
 **Paging.** `next` is a structured cursor. Pass it back unchanged as
 `cursor`, with the same filters, to get the following page; its keys depend on
@@ -101,6 +103,48 @@ const { posting, rooms } = await overlay.channels({ limit: 10 })
 const { items: people, total } = await overlay.identities({ limit: 5 })
 const { items: lenses } = await overlay.lenses()
 await overlay.feed({ channel: posting[0]?.channel, lens: lenses.map((l) => l.lensId) })
+```
+
+**Chat.** `messages()` reads a channel's chat, the global chat, or private
+messages. Name what to read: `channel`, `scope: 'global'`, `recipient` (an
+inbox) or `author` alone (an outbox); asking for nothing is rejected, because
+the overlay also holds direct messages. The first page is the newest messages,
+newest first: render it oldest-first by reversing `items`, and load older ones
+with the page's `next` (it is `null` exactly when nothing older is left). With
+`order: 'asc'` and a cursor built from the newest message you hold, you get
+what arrived since:
+
+```ts
+const page = await overlay.messages({ channel: 'peck-dev', limit: 50 })
+const bubbles = [...page.items].reverse()
+const older = page.next && (await overlay.messages({ channel: 'peck-dev', limit: 50, cursor: page.next }))
+
+const newest = page.items[0]
+const fresh = newest && (await overlay.messages({
+  channel: 'peck-dev',
+  order: 'asc',
+  cursor: { after_ts: newest.createdAt, after_txid: newest.txid },
+}))
+```
+
+A direct message's `text` is whatever its sender wrote, normally an encrypted
+envelope: open it with `@overlay-social/sdk/dm`. Channel messages the
+operator's paywall covers come back with `text: null` and `paywalled: true`.
+
+**People across Bitcoin.** `authors()` lists the people whose public posts the
+overlay indexes from other apps, whether or not they claimed an identity here
+(`identities()` lists those that did). It is a ranking by post count, a
+snapshot refreshed every few minutes (`asOf`), limited to the top 5000
+(`total`, `capped`). A shared custodial key is one row with
+`author.custodialRelay` set (the app, not a person); `by: 'name'` lists the
+people behind it. Right after the overlay starts the first snapshot may still
+be loading: that is a `ReadError` with code `timeout` and status 503, so retry
+in a few seconds.
+
+```ts
+const everyone = await overlay.authors({ limit: 50 })
+const twetchers = await overlay.authors({ app: 'twetch' })
+const treechatNames = await overlay.authors({ app: 'treechat', by: 'name' })
 ```
 
 **Errors.** Every failure throws a `ReadError` with a stable `code` and the

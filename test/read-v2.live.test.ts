@@ -78,6 +78,63 @@ describe.skipIf(!live)('live /v2 smoke test', () => {
     }
   }, 30_000)
 
+  it('messages: a room and the global chat, newest first and paged; a direct read needs a name', async () => {
+    const { rooms } = await client.channels({ limit: 5 })
+    const room = rooms[0]?.channel
+    if (room) {
+      const page = await client.messages({ channel: room, limit: 3 })
+      expect(peckViewErrors('MessagePage', page)).toEqual([])
+      expect(page.items.length).toBeGreaterThan(0)
+      expect(page.items.every((m) => m.channel === room && !m.direct)).toBe(true)
+      const times = page.items.map((m) => m.createdAt)
+      expect(times).toEqual([...times].sort().reverse())
+      if (page.next) {
+        const older = await client.messages({ channel: room, limit: 3, cursor: page.next })
+        expect(peckViewErrors('MessagePage', older)).toEqual([])
+        expect(older.items.map((m) => m.txid)).not.toContain(page.items[0]?.txid)
+      }
+      // What arrived since the newest message: nothing newer than the head, oldest first.
+      const head = page.items[0]
+      if (head) {
+        const since = await client.messages({ channel: room, order: 'asc', limit: 3, cursor: { after_ts: head.createdAt, after_txid: head.txid } })
+        expect(peckViewErrors('MessagePage', since)).toEqual([])
+      }
+    }
+    const global = await client.messages({ scope: 'global', limit: 3 })
+    expect(peckViewErrors('MessagePage', global)).toEqual([])
+    expect(global.items.every((m) => m.channel === null && !m.direct)).toBe(true)
+    await expect(client.messages({} as never)).rejects.toMatchObject({ code: 'bad_request', status: 0 })
+  }, 60_000)
+
+  it('authors "across bitcoin": ranked, paged, and a first snapshot that may still be loading', async () => {
+    let list = null
+    for (let attempt = 0; attempt < 6 && !list; attempt++) {
+      try {
+        list = await client.authors({ limit: 5 })
+      } catch (e) {
+        if ((e as { status?: number }).status !== 503) throw e
+        await new Promise((r) => setTimeout(r, 3000))
+      }
+    }
+    expect(list).not.toBeNull()
+    if (!list) return
+    expect(peckViewErrors('AuthorList', list)).toEqual([])
+    expect(list.items.length).toBeGreaterThan(0)
+    const posts = list.items.map((i) => i.posts)
+    expect(posts).toEqual([...posts].sort((a, b) => b - a))
+    if (list.next) {
+      const second = await client.authors({ limit: 5, cursor: list.next })
+      expect(peckViewErrors('AuthorList', second)).toEqual([])
+      expect(second.items.map((i) => i.author.key)).not.toContain(list.items[0]?.author.key)
+    }
+    const app = list.items[0]?.app
+    if (app) {
+      const one = await client.authors({ app, limit: 5 })
+      expect(peckViewErrors('AuthorList', one)).toEqual([])
+      expect(one.items.every((i) => i.app === app)).toBe(true)
+    }
+  }, 60_000)
+
   it('reactions of a post, paged', async () => {
     const page = await client.feed({ limit: 50, rank: 'top' })
     const liked = page.items.find((p) => p.counts.likes > 0)

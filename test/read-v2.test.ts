@@ -8,8 +8,10 @@ import {
   isReadError,
   appsSearchParams,
   channelsSearchParams,
+  authorsSearchParams,
   identitiesSearchParams,
   lensesSearchParams,
+  messagesSearchParams,
   reactionsSearchParams,
   type FeedPage,
   type PostView,
@@ -298,6 +300,96 @@ describe('channels(), identities() and lenses()', () => {
   it('identities() needs the total', async () => {
     const { client } = clientWith(() => json({ items: [] }))
     await expect(client.identities()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+})
+
+describe('messages()', () => {
+  const EMPTY_MESSAGES = { items: [], next: null }
+
+  it('maps the typed query onto the /v2/messages wire names', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_MESSAGES))
+    await client.messages({ channel: ' mcp-chat ', author: '1sender', limit: 20, order: 'asc', cursor: { after_ts: '2026-09-30T09:10:58Z', after_txid: txid(3) } })
+    const u = calls[0]!.url
+    expect(u.origin + u.pathname).toBe('https://overlay.example/v2/messages')
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      channel: 'mcp-chat',
+      author: '1sender',
+      limit: '20',
+      order: 'asc',
+      after_ts: '2026-09-30T09:10:58Z',
+      after_txid: txid(3),
+    })
+    expect(calls[0]!.method).toBe('GET')
+  })
+
+  it('reads the global chat, an inbox and an outbox', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_MESSAGES))
+    await client.messages({ scope: 'global' })
+    await client.messages({ recipient: '02ab' })
+    await client.messages({ author: '1sender', recipient: '02ab' })
+    expect(calls.map((c) => c.url.search)).toEqual(['?scope=global', '?recipient=02ab', '?recipient=02ab&author=1sender'])
+  })
+
+  it('passes a numeric cursor value back as a string, and leaves unset fields out', () => {
+    const qs = messagesSearchParams({ channel: 'c', cursor: { before_ts: '2026-09-30T09:10:58Z', before_txid: txid(9) } })
+    expect([...qs.keys()].sort()).toEqual(['before_ts', 'before_txid', 'channel'])
+    expect(messagesSearchParams({ recipient: 'k', cursor: null }).toString()).toBe('recipient=k')
+  })
+
+  it('rejects a query that names nothing, before sending anything', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_MESSAGES))
+    for (const q of [{}, { limit: 10 }, { channel: '  ' }, { cursor: null }]) {
+      await expect(client.messages(q)).rejects.toMatchObject({ code: 'bad_request', status: 0, path: '/v2/messages' })
+    }
+    expect(calls).toHaveLength(0)
+  })
+
+  it("surfaces the overlay's 400 for a conflicting query", async () => {
+    const { client } = clientWith(() => json({ error: { code: 'bad_request', message: 'give channel or scope=global, not both' } }, 400))
+    await expect(client.messages({ channel: 'a', scope: 'global' })).rejects.toMatchObject({ code: 'bad_request', status: 400 })
+  })
+
+  it('rejects a body that is not a page', async () => {
+    const { client } = clientWith(() => json({ status: 'ok', data: [] }))
+    await expect(client.messages({ channel: 'a' })).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+})
+
+describe('authors()', () => {
+  const EMPTY_AUTHORS = { items: [], next: null, total: 0, capped: false, asOf: '2026-09-30T09:10:00Z' }
+
+  it('maps the typed query onto the /v2/authors wire names', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_AUTHORS))
+    await client.authors({ app: ' twetch ', limit: 25, cursor: { before_posts: 12, before_key: '1abc' } })
+    const u = calls[0]!.url
+    expect(u.origin + u.pathname).toBe('https://overlay.example/v2/authors')
+    expect(Object.fromEntries(u.searchParams)).toEqual({ app: 'twetch', limit: '25', before_posts: '12', before_key: '1abc' })
+  })
+
+  it('sends no query string for an empty query', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_AUTHORS))
+    await client.authors()
+    expect(calls[0]!.url.search).toBe('')
+    expect(authorsSearchParams().toString()).toBe('')
+  })
+
+  it('reads the names behind a shared key; by "name" needs an app, checked before sending', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_AUTHORS))
+    await client.authors({ app: 'treechat', by: 'name' })
+    expect(calls[0]!.url.search).toBe('?app=treechat&by=name')
+    await expect(client.authors({ by: 'name' })).rejects.toMatchObject({ code: 'bad_request', status: 0, path: '/v2/authors' })
+    await expect(client.authors({ by: 'name', app: '  ' })).rejects.toMatchObject({ code: 'bad_request', status: 0 })
+    expect(calls).toHaveLength(1)
+  })
+
+  it('a first snapshot that is still loading is a timeout ReadError with status 503', async () => {
+    const { client } = clientWith(() => json({ error: { code: 'timeout', message: 'the author ranking is still being computed; retry in a few seconds' } }, 503))
+    await expect(client.authors()).rejects.toMatchObject({ code: 'timeout', status: 503 })
+  })
+
+  it('rejects a body that is not a list', async () => {
+    const { client } = clientWith(() => json({ items: [] }))
+    await expect(client.authors()).rejects.toMatchObject({ code: 'invalid_response' })
   })
 })
 
