@@ -85,6 +85,20 @@ export {
   type IdentityProfileWallet,
 } from './identity-profile.js'
 export {
+  FRIEND_APP,
+  FRIEND_PROTOCOL,
+  FRIEND_SCHEMA_VERSION,
+  friend,
+  friendPreimage,
+  unfriend,
+  verifyFriend,
+  type FriendCheck,
+  type FriendInput,
+  type FriendOptions,
+  type FriendRecord,
+  type FriendWallet,
+} from './friend.js'
+export {
   ALT_DECIMALS,
   DEFAULT_GEOHASH_LENGTH,
   DEFAULT_GEO_PRECISION,
