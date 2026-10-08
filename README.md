@@ -437,6 +437,43 @@ await submitToOverlay(action, { topics: [OVERLAY_TOPICS.identityProfile] }) // s
 verifyIdentityProfile(toLockingScript(p)) // { identity, fields, valid: true }
 ```
 
+### Friends
+
+Friendship is mutual consent, written as two one-way records. `friend({ peer })`
+says "this identity consents to being friends with `peer`": a request, or the
+accept of one the peer already sent. `unfriend({ peer })` withdraws this
+wallet's side only; the other side's record stays. The pair is active while
+both directions are admitted and not withdrawn. A record speaks only for its
+sender: the identity key signs it itself (BRC-3, protocol `[1, 'friend']`, a
+random serial as key ID, counterparty `anyone`), the overlay checks that
+signature, and no AIP section is written. Both keys are identity keys (the
+wallet's identity key, the `identityKey` the overlay returns for an author),
+not posting keys or addresses. The record carries consent and discovery, no key
+material.
+
+```ts
+import { friend, toLockingScript, unfriend, verifyFriend } from '@overlay-social/sdk/schema'
+import { OVERLAY_TOPICS, submitToOverlay } from '@overlay-social/sdk/submit'
+import { createOverlayClient } from '@overlay-social/sdk/read'
+
+const rec = await friend({ peer: peerIdentityKey }, { wallet })
+const action = await wallet.createAction({
+  description: 'Friend request',
+  outputs: [{ lockingScript: toLockingScript(rec).toHex(), satoshis: 0, outputDescription: 'social-friend' }],
+})
+await submitToOverlay(action, { topics: [OVERLAY_TOPICS.friend] })
+verifyFriend(toLockingScript(rec)) // { type: 'friend', identity, peer, fields, valid: true }
+
+// Where the relation stands: who is mutual, who asked you, who you asked.
+const { mutual, pendingIn, pendingOut } = await createOverlayClient().getFriends(myIdentityKey)
+```
+
+The builders sign through the wallet and refuse a signature that does not
+verify against the identity key the wallet reported, a `peer` that is not a
+compressed identity key, and a `peer` equal to the wallet's own key. The
+overlay has no `/v2` friends read yet; `getFriends()` (`GET /v1/friends/:subject`)
+is the read, and takes the identity key.
+
 ## Sanitising chain content (`/sanitize`)
 
 Post text is written by anyone and can never be deleted from the chain, so it
@@ -596,9 +633,9 @@ transaction up from the chain later.
 | --- | --- | --- |
 | `post`, `reply`, `quote`, `repost`, `like`, `unlike`, `follow`, `unfollow`, `message`, `payment` (a tip) | `tm_social-content` (the default) | `OVERLAY_TOPICS.content` |
 | `identityProfile()` | `tm_identity-profile` | `OVERLAY_TOPICS.identityProfile` |
+| `friend()`, `unfriend()` | `tm_social-friend` | `OVERLAY_TOPICS.friend` |
 | an identity handle claim | `tm_identity-handle` | `OVERLAY_TOPICS.identityHandle` |
 | a key binding | `tm_key-binding` | `OVERLAY_TOPICS.keyBinding` |
-| a friend request or withdrawal | `tm_social-friend` | `OVERLAY_TOPICS.friend` |
 
 `peck-schema` is the old name of the same topic manager as
 `tm_social-content` (`OVERLAY_TOPICS.contentLegacy`). One transaction can go to
