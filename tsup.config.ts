@@ -13,6 +13,7 @@ export default defineConfig({
     submit: 'src/submit/index.ts',
     sanitize: 'src/sanitize/index.ts',
     'sanitize.web': 'src/sanitize/web.ts',
+    escape: 'src/sanitize/escape.ts',
     peckos: 'src/peckos/index.ts',
     dm: 'src/dm/index.ts',
   },

@@ -173,6 +173,11 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   (`['http://localhost:3321', 'http://localhost:2121']`), probed one after the
   other; the first that answers `getVersion` is used. A string, or no `local`,
   behaves exactly as before.
+- `@overlay-social/sdk/sanitize/escape`: `escapeHtml()`, `LINK_REL` and
+  `URI_OK` alone, as a self-contained ES module (`dist/escape.browser.js`,
+  under 0.5 KB) for pages that only escape text and should not ship the 73 KB
+  `sanitize/browser` bundle. The functions are the ones `sanitize` already
+  exports; a size test keeps DOMPurify and marked out of it.
 
 ### Changed
 - `identity`: `monogram()` follows peck.to's rule: the first letter or digit

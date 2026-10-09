@@ -23,6 +23,15 @@ export default defineConfig([
   },
   {
     ...common,
+    // Escaping only: no DOMPurify, no marked (under 0.5 KB). test/sanitize-escape.test.ts holds the size.
+    entry: { 'escape.browser': 'src/sanitize/escape.ts' },
+    minify: true,
+    banner: {
+      js: '// Generated from @overlay-social/sdk (src/sanitize/escape.ts). Do not edit; import it or copy it as is.',
+    },
+  },
+  {
+    ...common,
     entry: { 'sanitize.browser': 'src/sanitize/web.ts' },
     // The libraries are bundled in, so the file has no imports. esbuild keeps
     // DOMPurify's licence comment at the end of the file; marked's is in the banner.

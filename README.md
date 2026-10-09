@@ -557,6 +557,17 @@ step, `@overlay-social/sdk/sanitize/browser` is one self-contained ES module
 (`dist/sanitize.browser.js`, DOMPurify and marked included, about 71 KB, 25 KB
 gzipped).
 
+A page that only has to escape text needs none of that:
+`@overlay-social/sdk/sanitize/escape` is the same `escapeHtml()` (with
+`LINK_REL` and `URI_OK`) as a self-contained module of under 1 KB, without
+DOMPurify or marked.
+
+```ts
+import { escapeHtml } from '@overlay-social/sdk/sanitize/escape'
+
+el.innerHTML = `<b>${escapeHtml(displayName)}</b>`
+```
+
 The tests run a corpus of XSS payloads (the classic vectors, mutation-XSS
 patterns, markdown-specific forms) through every entry point.
 `npm run check:sanitize-browser` runs the same corpus through the single-file
