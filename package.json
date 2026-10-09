@@ -51,6 +51,15 @@
       "import": "./dist/sanitize.browser.js",
       "default": "./dist/sanitize.browser.js"
     },
+    "./sanitize/escape": {
+      "types": "./dist/escape.d.ts",
+      "import": "./dist/escape.browser.js",
+      "default": "./dist/escape.browser.js"
+    },
+    "./links": {
+      "types": "./dist/links.d.ts",
+      "import": "./dist/links.js"
+    },
     "./dm": {
       "types": "./dist/dm.d.ts",
       "import": "./dist/dm.js"

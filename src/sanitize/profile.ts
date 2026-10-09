@@ -33,6 +33,10 @@
  * the host, and `autoplay` is removed: content never starts media by itself.
  */
 import type { Config } from 'dompurify'
+import { LINK_REL, URI_OK, escapeHtml } from './escape.js'
+
+// Re-exported so `./profile.js` stays the one place the rest of the module reads them from.
+export { LINK_REL, URI_OK, escapeHtml }
 
 /** Options every sanitising call takes. */
 export interface SanitizeOptions {
@@ -43,16 +47,6 @@ export interface SanitizeOptions {
    */
   externalLinkTarget?: '_blank' | null
 }
-
-/** The `rel` every link gets. */
-export const LINK_REL = 'noopener noreferrer nofollow ugc'
-
-/**
- * `http`, `https` and `mailto`, plus relative URLs (`/u/name`, `#top`,
- * `page.html`). DOMPurify's default minus `ftp`, `tel`, `sms`, `cid`, `xmpp`
- * and the rest, so `javascript:`, `vbscript:` and every other scheme fail.
- */
-export const URI_OK = /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i
 
 /** The one iframe an embed card may contain. */
 export const YOUTUBE_EMBED_URL = /^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{11}$/
@@ -162,11 +156,4 @@ export function hardenNode(node: Element, embed: boolean, options: SanitizeOptio
     node.setAttribute('loading', 'lazy')
     node.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
   }
-}
-
-const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }
-
-/** Escape text for an HTML text or attribute context. */
-export function escapeHtml(text: unknown): string {
-  return String(text ?? '').replace(/[&<>"'`]/g, (c) => ESCAPES[c] as string)
 }

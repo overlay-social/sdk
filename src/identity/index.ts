@@ -19,7 +19,7 @@ export {
   type ResolvedIdentityConfig,
 } from './config.js'
 export { ADDRESS_RE, PUBKEY_RE, keyKind, keyToAddress, normalizeKey, shortKey, type KeyKind } from './keys.js'
-export { MAX_DATA_URI, avatarRefToUrl, generatedAvatarUrl, type AvatarOrigin } from './avatar.js'
+export { MAX_DATA_URI, avatarRefToUrl, generatedAvatarUrl, safeAvatarUrl, type AvatarOrigin } from './avatar.js'
 export {
   bakeAuthor,
   type AccountRecord,

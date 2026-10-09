@@ -7,7 +7,8 @@
  *  2. cwi      a wallet injected into the page (`window.CWI`): mobile wallet
  *              browsers and extensions.
  *  3. local    a desktop wallet serving BRC-100 over HTTP on this machine
- *              (default `http://localhost:3321`).
+ *              (default `http://localhost:3321`; `local` may also be an ordered
+ *              list of URLs, probed one after the other, first answer wins).
  *  4. passkey  an app-supplied opener, used when nothing else answered.
  *
  * Detection never prompts and never asks the wallet for keys: it is a Peck OS
@@ -53,9 +54,17 @@ export interface ConnectOptions {
   originator?: string
   /** The Peck OS client to ask. Default: the page's `PeckOS`. `false` skips the door. */
   peckos?: PeckOSClient | false
-  /** Base URL of the local wallet. Default `http://localhost:3321`. `false` skips the door. */
-  local?: string | false
-  /** Milliseconds the local wallet has to answer during detection. Default 1500. */
+  /**
+   * Base URL of the local wallet. Default `http://localhost:3321`. `false` skips the door.
+   *
+   * An array is an ordered list of candidates, for apps that know that wallets
+   * listen on different ports (`['http://localhost:3321', 'http://localhost:2121']`).
+   * They are probed one after the other, never in parallel, and the first that
+   * answers `getVersion` is used for the whole session. An empty array skips
+   * the door, like `false`.
+   */
+  local?: string | readonly string[] | false
+  /** Milliseconds each local wallet candidate has to answer during detection. Default 1500. */
   localProbeTimeoutMs?: number
   /**
    * Milliseconds each local wallet request may take after detection. Default:
@@ -178,6 +187,18 @@ async function probeLocal(base: string, opts: HttpOptions): Promise<boolean> {
   }
 }
 
+const trimSlashes = (url: string): string => url.replace(/\/+$/, '')
+
+/**
+ * The base URLs to probe, in order. A single string (or nothing) behaves as it
+ * always did; in a list, blanks and duplicates are dropped.
+ */
+function localCandidates(local: string | readonly string[] | undefined): string[] {
+  if (typeof local === 'string') return [trimSlashes(local)]
+  if (local === undefined) return [trimSlashes(DEFAULT_LOCAL_WALLET_URL)]
+  return [...new Set(local.map(trimSlashes).filter(Boolean))]
+}
+
 // ── connect ─────────────────────────────────────────────────────
 
 function injected(getGlobal: () => { CWI?: unknown } | undefined): WalletLike | null {
@@ -210,11 +231,12 @@ export async function connect(options: ConnectOptions = {}): Promise<ConnectedWa
   // 3. The local HTTP wallet
   const fetchImpl = options.fetch ?? (typeof fetch === 'function' ? fetch.bind(globalThis) : undefined)
   if (options.local !== false && fetchImpl) {
-    const base = (options.local ?? DEFAULT_LOCAL_WALLET_URL).replace(/\/+$/, '')
     const probe = { fetch: fetchImpl, timeoutMs: options.localProbeTimeoutMs ?? LOCAL_PROBE_TIMEOUT_MS, originator }
-    if (await probeLocal(base, probe)) {
-      const perCall = { fetch: fetchImpl, timeoutMs: options.localRequestTimeoutMs, originator }
-      return wrap('local', null, (m, args, o) => httpCall(base, m, args, { ...perCall, originator: o }), originator)
+    for (const base of localCandidates(options.local)) {
+      if (await probeLocal(base, probe)) {
+        const perCall = { fetch: fetchImpl, timeoutMs: options.localRequestTimeoutMs, originator }
+        return wrap('local', null, (m, args, o) => httpCall(base, m, args, { ...perCall, originator: o }), originator)
+      }
     }
   }
 

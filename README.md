@@ -320,6 +320,7 @@ separate ESM entry point with its own type declarations).
 | `@overlay-social/sdk/submit` | Send a signed transaction from the browser to the overlay, with a typed error for every failure | available |
 | `@overlay-social/sdk/identity` | The rules for showing an author: display name, handle, short key and avatar URL, the same ones the overlay applies | available |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for chain content: markdown to safe HTML for browsers and server rendering | available |
+| `@overlay-social/sdk/links` | Public addresses of a post (`peck.to/tx/<txid>`) and of a located post on peck.world, built as peck.to builds them | available |
 | `@overlay-social/sdk/dm` | End-to-end encrypted direct messages: BRC-42 envelopes and a message-box client, compatible with peck.to | available |
 | `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | available |
 
@@ -557,6 +558,17 @@ step, `@overlay-social/sdk/sanitize/browser` is one self-contained ES module
 (`dist/sanitize.browser.js`, DOMPurify and marked included, about 71 KB, 25 KB
 gzipped).
 
+A page that only has to escape text needs none of that:
+`@overlay-social/sdk/sanitize/escape` is the same `escapeHtml()` (with
+`LINK_REL` and `URI_OK`) as a self-contained module of under 1 KB, without
+DOMPurify or marked.
+
+```ts
+import { escapeHtml } from '@overlay-social/sdk/sanitize/escape'
+
+el.innerHTML = `<b>${escapeHtml(displayName)}</b>`
+```
+
 The tests run a corpus of XSS payloads (the classic vectors, mutation-XSS
 patterns, markdown-specific forms) through every entry point.
 `npm run check:sanitize-browser` runs the same corpus through the single-file
@@ -594,6 +606,11 @@ the app makes its first request. The passkey opener is also called on the first
 request, not by `connect()`, so make that request from a click. Some browsers
 ask before a page talks to a local-network address; call `connect()` from a
 user gesture, or pass `local: false` to skip that door.
+
+Wallets that listen on another port are found with an ordered list:
+`connect({ local: ['http://localhost:3321', 'http://localhost:2121'] })` probes
+them one after the other (each with the probe timeout) and uses the first that
+answers. A single string, or no `local` at all, behaves as before.
 
 **One error shape.** Every error a wallet method throws becomes a
 `WalletRequestError` with a `reason`:
@@ -712,6 +729,7 @@ const link = `/u/${profileRef(author)}`    // handle, else identity key, else ke
 | `bakeAuthor(sources, config?)` | The whole `AuthorView` from the records you have (below) |
 | `avatarRefToUrl(ref, origin, config?)` | `avatarRef` to an `<img src>` URL, or `null` |
 | `generatedAvatarUrl(key, address, config?)` | The generated bird, seeded on the P2PKH address |
+| `safeAvatarUrl(url)` | Check an already resolved picture URL before it goes into an `<img src>`: `http(s)` (normalised) or an inline `data:image/` up to 64 KiB, else `null` |
 | `avatarSrc(author)` | `avatarUrl`, else `generatedAvatarUrl` |
 | `formatHandle(handle)` / `normalizeHandle(handle)` | `@ada` / `ada`, from a handle with or without the @ |
 | `shortKey(key)` | `1BSMAM…U4gG`: first 6 + `…` + last 4 of anything longer than 12 |
@@ -751,6 +769,22 @@ a person: `bakeAuthor` ignores identity, account and handle for it, and
 `bakeAuthor` needs `@bsv/sdk` to derive the address of a public key, so it is
 the one part of this module that is not tiny; the display helpers above pull in
 nothing else.
+
+## Links to a post (`/links`)
+
+```ts
+import { postUrl, worldUrl } from '@overlay-social/sdk/links'
+
+postUrl(txid)                    // https://peck.to/tx/<txid>
+worldUrl(txid, 59.9139, 10.7522) // https://peck.world/?tx=<txid>&at=59.9139,10.7522
+```
+
+The addresses peck.to's thread page and location chip use. Coordinates are
+written with at most 6 decimals, no trailing zeros and no exponent. Both
+functions return `null` for a txid that is not 64 hex characters and, for
+`worldUrl`, for coordinates that are not a place on Earth, so a renderer can
+leave the link out. A third argument (`postUrl`) or fourth (`worldUrl`) names
+another host, such as a preview host.
 
 ## Direct messages (`/dm`)
 

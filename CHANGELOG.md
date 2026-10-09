@@ -169,6 +169,23 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `server`, `invalid_response`, `not_admitted`). No server, queue or
   database in between. Tests run against a mocked fetch and against a mock
   overlay over real HTTP.
+- `wallet`: `connect({ local })` also takes an ordered list of base URLs
+  (`['http://localhost:3321', 'http://localhost:2121']`), probed one after the
+  other; the first that answers `getVersion` is used. A string, or no `local`,
+  behaves exactly as before.
+- `@overlay-social/sdk/sanitize/escape`: `escapeHtml()`, `LINK_REL` and
+  `URI_OK` alone, as a self-contained ES module (`dist/escape.browser.js`,
+  under 0.5 KB) for pages that only escape text and should not ship the 73 KB
+  `sanitize/browser` bundle. The functions are the ones `sanitize` already
+  exports; a size test keeps DOMPurify and marked out of it.
+- `identity`: `safeAvatarUrl(url)` checks an already resolved picture URL
+  before it is rendered: `http(s)` addresses (normalised, as peck.to v2 does)
+  and inline `data:image/` pictures up to 64 KiB pass; `javascript:`, other
+  `data:` types and everything else give `null`.
+- `@overlay-social/sdk/links`: `postUrl(txid)` gives `https://peck.to/tx/<txid>`
+  and `worldUrl(txid, lat, lng)` gives `https://peck.world/?tx=<txid>&at=<lat>,<lng>`,
+  with coordinates written as peck.to's location chip writes them (at most 6
+  decimals, no exponent). Both return `null` for input that is not an address.
 
 ### Changed
 - `identity`: `monogram()` follows peck.to's rule: the first letter or digit

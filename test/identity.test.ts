@@ -18,6 +18,7 @@ import {
   normalizeKey,
   profileRef,
   resolveConfig,
+  safeAvatarUrl,
   shortKey,
   type AccountRecord,
   type AuthorSources,
@@ -167,6 +168,70 @@ describe('avatarRefToUrl', () => {
     expect(avatarRefToUrl(`uhrp://${HASH}`, 'identity')).toBe(`https://peck.bio/uhrp/${HASH}`)
     expect(avatarRefToUrl(`b://${HASH}`, 'identity')).toBe(`https://peck.to/b/${HASH}`)
     expect(avatarRefToUrl(`b://${HASH}`, 'identity', { mediaBase: 'https://media.example/' })).toBe(`https://media.example/b/${HASH}`)
+  })
+})
+
+describe('safeAvatarUrl', () => {
+  it('passes http(s) addresses, normalised like peck-web v2 safeHttpUrl (URL.href)', () => {
+    expect(safeAvatarUrl('https://cdn.example/a.png')).toBe('https://cdn.example/a.png')
+    expect(safeAvatarUrl('  http://cdn.example  ')).toBe('http://cdn.example/')
+    expect(safeAvatarUrl('HTTPS://CDN.EXAMPLE/A.png?x=1#y')).toBe('https://cdn.example/A.png?x=1#y')
+    expect(safeAvatarUrl('https://peck.to/b/' + HASH)).toBe('https://peck.to/b/' + HASH)
+  })
+
+  it('passes inline images up to the size limit, unchanged', () => {
+    const svg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>'
+    expect(safeAvatarUrl(svg)).toBe(svg)
+    expect(safeAvatarUrl('data:image/png;base64,iVBORw0KGgo=')).toBe('data:image/png;base64,iVBORw0KGgo=')
+    const big = 'data:image/png;base64,' + 'A'.repeat(MAX_DATA_URI)
+    expect(safeAvatarUrl(big)).toBeNull()
+    const edge = 'data:image/png;base64,' + 'A'.repeat(MAX_DATA_URI - 'data:image/png;base64,'.length)
+    expect(safeAvatarUrl(edge)).toBe(edge)
+  })
+
+  it.each([
+    ['javascript:alert(1)'],
+    ['JaVaScRiPt:alert(1)'],
+    [' javascript:alert(1)//https://x.example'],
+    ['vbscript:msgbox(1)'],
+    ['data:text/html,<script>alert(1)</script>'],
+    ['data:application/javascript,alert(1)'],
+    ['data:image'],
+    ['file:///etc/passwd'],
+    ['blob:https://x.example/uuid'],
+    ['ftp://x.example/a.png'],
+    ['//x.example/a.png'],
+    ['/avatar/abc'],
+    ['uhrp://' + HASH],
+    ['https://x.example/a b.png'],
+    ['https://x.example/a\n.png'],
+    ['https://'],
+    [''],
+    ['   '],
+  ])('refuses %j', (value) => {
+    expect(safeAvatarUrl(value)).toBeNull()
+  })
+
+  it('refuses what is not a string', () => {
+    expect(safeAvatarUrl(null)).toBeNull()
+    expect(safeAvatarUrl(undefined)).toBeNull()
+    expect(safeAvatarUrl(42 as unknown as string)).toBeNull()
+  })
+
+  it('accepts every URL avatarRefToUrl produces', () => {
+    const refs: Array<[string, 'identity' | 'external']> = [
+      ['uhrp://' + HASH, 'identity'],
+      ['b://' + HASH, 'identity'],
+      ['b://' + HASH, 'external'],
+      ['ord://' + HASH + '_1', 'identity'],
+      ['https://cdn.example/a.png', 'identity'],
+      ['data:image/svg+xml;utf8,<svg/>', 'identity'],
+    ]
+    for (const [ref, origin] of refs) {
+      const url = avatarRefToUrl(ref, origin, CFG)
+      expect(url, ref).not.toBeNull()
+      expect(safeAvatarUrl(url), ref).not.toBeNull()
+    }
   })
 })
 

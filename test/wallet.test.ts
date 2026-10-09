@@ -162,6 +162,47 @@ describe('connect(): local wallet over HTTP', () => {
     }
   })
 
+  it('probes an ordered list of wallets and uses the first that answers', async () => {
+    const { fetch, calls } = fakeFetch((url, body) => {
+      if (url.startsWith('http://localhost:3321')) throw new TypeError('connection refused')
+      if (url.endsWith('/getVersion')) return json({ version: 'wallet-2121' })
+      return json({ echoed: body })
+    })
+    const w = await connect({
+      peckos: noPeckOS,
+      getGlobal: noGlobal,
+      fetch,
+      local: ['http://localhost:3321/', 'http://localhost:2121/', 'http://localhost:9999'],
+    })
+    expect(w.via).toBe('local')
+    expect(calls.map((c) => c.url)).toEqual(['http://localhost:3321/getVersion', 'http://localhost:2121/getVersion'])
+    await w.createSignature({ data: [1], protocolID: [1, 'identity'], keyID: '1' })
+    expect(calls[2]!.url).toBe('http://localhost:2121/createSignature')
+  })
+
+  it('prefers the earlier candidate when several answer', async () => {
+    const { fetch, calls } = fakeFetch(() => json({ version: 'v' }))
+    await connect({ peckos: noPeckOS, getGlobal: noGlobal, fetch, local: ['http://localhost:3321', 'http://localhost:2121'] })
+    expect(calls.map((c) => c.url)).toEqual(['http://localhost:3321/getVersion'])
+  })
+
+  it('rejects as unavailable when no candidate answers, and probes each once', async () => {
+    const { fetch, calls } = fakeFetch(() => json({ nope: true }))
+    await expect(
+      connect({ peckos: noPeckOS, getGlobal: noGlobal, fetch, local: ['http://localhost:3321', 'http://localhost:3321/', '', 'http://localhost:2121'] }),
+    ).rejects.toMatchObject({ reason: 'unavailable' })
+    expect(calls.map((c) => c.url)).toEqual(['http://localhost:3321/getVersion', 'http://localhost:2121/getVersion'])
+  })
+
+  it('treats an empty list like false, and the default stays http://localhost:3321', async () => {
+    const empty = fakeFetch(() => json({ version: 'v' }))
+    await expect(connect({ peckos: noPeckOS, getGlobal: noGlobal, fetch: empty.fetch, local: [] })).rejects.toBeInstanceOf(WalletRequestError)
+    expect(empty.calls).toHaveLength(0)
+    const dflt = fakeFetch(() => json({ version: 'v' }))
+    await connect({ peckos: noPeckOS, getGlobal: noGlobal, fetch: dflt.fetch })
+    expect(dflt.calls.map((c) => c.url)).toEqual(['http://localhost:3321/getVersion'])
+  })
+
   it('does not accept an answer without a version', async () => {
     const { fetch } = fakeFetch(() => json({ hello: true }))
     await expect(connect({ peckos: noPeckOS, getGlobal: noGlobal, fetch })).rejects.toMatchObject({ reason: 'unavailable' })
