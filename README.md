@@ -728,6 +728,7 @@ const link = `/u/${profileRef(author)}`    // handle, else identity key, else ke
 | `bakeAuthor(sources, config?)` | The whole `AuthorView` from the records you have (below) |
 | `avatarRefToUrl(ref, origin, config?)` | `avatarRef` to an `<img src>` URL, or `null` |
 | `generatedAvatarUrl(key, address, config?)` | The generated bird, seeded on the P2PKH address |
+| `safeAvatarUrl(url)` | Check an already resolved picture URL before it goes into an `<img src>`: `http(s)` (normalised) or an inline `data:image/` up to 64 KiB, else `null` |
 | `avatarSrc(author)` | `avatarUrl`, else `generatedAvatarUrl` |
 | `formatHandle(handle)` / `normalizeHandle(handle)` | `@ada` / `ada`, from a handle with or without the @ |
 | `shortKey(key)` | `1BSMAM…U4gG`: first 6 + `…` + last 4 of anything longer than 12 |

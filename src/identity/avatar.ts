@@ -78,6 +78,38 @@ export function avatarRefToUrl(
 }
 
 /**
+ * Whether an already resolved picture URL (an `AuthorView.avatarUrl`, a stored
+ * `src`) is safe to put in an `<img src>`, and the value to use. `avatarRefToUrl`
+ * decides what a published reference maps to; this is the check for a URL that
+ * arrives from somewhere else (a cache, another service, a form field) and is
+ * about to be rendered. It is the rule peck.to's v2 client applies to chain
+ * URLs, plus the inline pictures `avatarRefToUrl` itself passes through:
+ *
+ *   http://… https://…   the parsed, normalised address (`URL.href`); anything
+ *                        containing whitespace or control characters is refused
+ *   data:image/…         unchanged, up to 64 KiB ({@link MAX_DATA_URI})
+ *   everything else      null: `javascript:`, `vbscript:`, `file:`, `blob:`, `data:text/html`,
+ *                        a relative path, or no string at all
+ *
+ * A `data:image/svg+xml` picture is inert as an image source; do not use the
+ * result as an `href`, an `<iframe>` or `<object>` source, or a CSS `url()`.
+ */
+export function safeAvatarUrl(url: string | null | undefined): string | null {
+  if (typeof url !== 'string') return null
+  const u = url.trim()
+  if (!u) return null
+  if (DATA_IMAGE_RE.test(u)) return u.length <= MAX_DATA_URI ? u : null
+  // eslint-disable-next-line no-control-regex
+  if (!HTTP_RE.test(u) || /[\s\u0000-\u001f\u007f]/.test(u)) return null
+  try {
+    const parsed = new URL(u)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * The generated bird for a key. It is seeded on the P2PKH address, the one
  * form that is the same for a key everywhere, so a key has the same bird on
  * every surface. Pass `address` as `null` for a key that has none (the key

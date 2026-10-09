@@ -178,6 +178,10 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   under 0.5 KB) for pages that only escape text and should not ship the 73 KB
   `sanitize/browser` bundle. The functions are the ones `sanitize` already
   exports; a size test keeps DOMPurify and marked out of it.
+- `identity`: `safeAvatarUrl(url)` checks an already resolved picture URL
+  before it is rendered: `http(s)` addresses (normalised, as peck.to v2 does)
+  and inline `data:image/` pictures up to 64 KiB pass; `javascript:`, other
+  `data:` types and everything else give `null`.
 
 ### Changed
 - `identity`: `monogram()` follows peck.to's rule: the first letter or digit
