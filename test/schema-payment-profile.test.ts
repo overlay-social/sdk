@@ -152,7 +152,11 @@ describe('a whole tip', () => {
       ],
       options: { randomizeOutputs: false },
     }
-    expect(JSON.stringify(args)).not.toMatch(/fee/i)
+    // No fee option anywhere: look at the keys, not the serialized text, whose
+    // random hex (keys, signatures) can spell 'fee' by chance.
+    const keys: string[] = []
+    JSON.stringify(args, (k, v) => (keys.push(k), v))
+    expect(keys.filter((k) => /fee/i.test(k))).toEqual([])
     // The record names the amount the second output pays.
     const value = opReturnPushes(args.outputs![0]!.lockingScript!)!.map((b) => Utils.toUTF8(b))
     expect(value[value.indexOf('value') + 1]).toBe(String(args.outputs![1]!.satoshis))
