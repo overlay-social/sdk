@@ -595,6 +595,11 @@ request, not by `connect()`, so make that request from a click. Some browsers
 ask before a page talks to a local-network address; call `connect()` from a
 user gesture, or pass `local: false` to skip that door.
 
+Wallets that listen on another port are found with an ordered list:
+`connect({ local: ['http://localhost:3321', 'http://localhost:2121'] })` probes
+them one after the other (each with the probe timeout) and uses the first that
+answers. A single string, or no `local` at all, behaves as before.
+
 **One error shape.** Every error a wallet method throws becomes a
 `WalletRequestError` with a `reason`:
 

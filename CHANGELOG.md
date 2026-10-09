@@ -169,6 +169,10 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `server`, `invalid_response`, `not_admitted`). No server, queue or
   database in between. Tests run against a mocked fetch and against a mock
   overlay over real HTTP.
+- `wallet`: `connect({ local })` also takes an ordered list of base URLs
+  (`['http://localhost:3321', 'http://localhost:2121']`), probed one after the
+  other; the first that answers `getVersion` is used. A string, or no `local`,
+  behaves exactly as before.
 
 ### Changed
 - `identity`: `monogram()` follows peck.to's rule: the first letter or digit
