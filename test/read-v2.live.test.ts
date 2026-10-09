@@ -175,4 +175,15 @@ describe.skipIf(!live)('live /v2 smoke test', () => {
   it('a malformed txid is a typed bad_request', async () => {
     await expect(client.post('zz')).rejects.toMatchObject({ code: 'bad_request', status: 400 })
   }, 30_000)
+
+  it('notifications agree with the contract', async () => {
+    // A person, not a shared custodial key (the overlay answers 400 for those).
+    const page = await client.feed({ limit: 20 })
+    const author = page.items.find((p) => !p.author.custodialRelay)?.author.key
+    expect(author).toBeDefined()
+    if (!author) return
+    const notes = await client.notifications({ viewer: author, limit: 5 })
+    expect(peckViewErrors('NotificationPage', notes)).toEqual([])
+    expect(notes.keys.length).toBeGreaterThan(0)
+  }, 30_000)
 })

@@ -12,6 +12,7 @@ import {
   identitiesSearchParams,
   lensesSearchParams,
   messagesSearchParams,
+  notificationsSearchParams,
   reactionsSearchParams,
   type FeedPage,
   type PostView,
@@ -352,6 +353,41 @@ describe('messages()', () => {
   it('rejects a body that is not a page', async () => {
     const { client } = clientWith(() => json({ status: 'ok', data: [] }))
     await expect(client.messages({ channel: 'a' })).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+})
+
+describe('notifications()', () => {
+  const EMPTY_NOTIFICATIONS = { viewer: '02ab', keys: ['02ab'], items: [], next: null, capped: false }
+
+  it('maps the typed query onto the /v2/notifications wire names', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_NOTIFICATIONS))
+    await client.notifications({ viewer: ' 02ab ', kinds: ['reply', 'mention', 'reply'], limit: 20, cursor: { before_ts: '2026-09-30T09:10:58Z', before_id: 'like:x' } })
+    const u = calls[0]!.url
+    expect(u.origin + u.pathname).toBe('https://overlay.example/v2/notifications')
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      viewer: '02ab', kinds: 'reply,mention', limit: '20', before_ts: '2026-09-30T09:10:58Z', before_id: 'like:x',
+    })
+    expect(calls[0]!.method).toBe('GET')
+  })
+
+  it('leaves unset fields out', () => {
+    expect(notificationsSearchParams({ viewer: '1abc' }).toString()).toBe('viewer=1abc')
+    expect(notificationsSearchParams({ viewer: '1abc', kinds: [], cursor: null }).toString()).toBe('viewer=1abc')
+  })
+
+  it('rejects a query without a viewer before any request', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_NOTIFICATIONS))
+    for (const viewer of ['', '  ']) {
+      await expect(client.notifications({ viewer })).rejects.toMatchObject({ code: 'bad_request', status: 0 })
+    }
+    expect(calls).toHaveLength(0)
+  })
+
+  it('a 400 from the overlay is a bad_request ReadError; a body that is not a NotificationPage is invalid_response', async () => {
+    const bad = clientWith(() => json({ error: { code: 'bad_request', message: 'viewer must be a P2PKH address or a compressed public key' } }, 400))
+    await expect(bad.client.notifications({ viewer: 'ada' })).rejects.toMatchObject({ code: 'bad_request', status: 400 })
+    const odd = clientWith(() => json({ items: [], next: null }))
+    await expect(odd.client.notifications({ viewer: '02ab' })).rejects.toMatchObject({ code: 'invalid_response' })
   })
 })
 
