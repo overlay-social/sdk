@@ -5,7 +5,7 @@
  * (src/read/peck-view/peck-view.schema.json). Do not edit by hand: re-run
  * `npm run sync:peck-view -- <path to the contract schema>`.
  *
- * Contract source sha256: be300305ccc3bda9e272f4f4a7660988941ce4f2e28d05e78461c00469988f36
+ * Contract source sha256: af97b2574a086282b4adeaca2ccaf5348acbbf5b5b5275338bc677b7e5ddba03
  */
 
 /**
@@ -25,6 +25,7 @@ export type PeckView =
   | IdentityList
   | AuthorList
   | LensList
+  | NotificationPage
   | ErrorResponse
 /**
  * A BRC-100 identity key: a 66-hex compressed secp256k1 public key, lowercase.
@@ -110,7 +111,7 @@ export interface PostView {
    */
   tags: string[]
   /**
-   * MAP channel (rarely used). Null when unset.
+   * The channel this post names in its own MAP `channel` field, as written. A reply or a repost is not placed in its parent's channel: it reports a channel only when it names one itself, and peck.to's clients never write one on a reply, so a client that wants to show where a thread lives reads the thread root's `channel`. /v1 serves the same value. Null when unset.
    */
   channel: string | null
   /**
@@ -327,7 +328,7 @@ export interface PostCounts {
    */
   quotes: number
   /**
-   * Satoshis paid with this post as the payment's context, summed over every indexed payment.
+   * Satoshis the chain shows reached this post's author from payments that name this post (MAP type=payment, tx=<this post>), summed over every indexed payment: P2PKH outputs to the author's signing address, a BRC-29 output whose payment record publishes its key linkage, or Twetch's author share of a paid action. A payment's own claimed `value` is never counted, so a BRC-29 tip that does not publish its linkage adds nothing.
    */
   tipSats: number
   /**
@@ -897,6 +898,110 @@ export interface LensRule {
    * The text a `label` rule shows. Optional, and only on rules that carry one.
    */
   label?: string
+}
+/**
+ * Response of GET /v2/notifications?viewer=<key>: what other people did that concerns one person, newest first, a page at a time (limit 1-100, default 50). Built from public on-chain records looked up by the viewer's keys (the same set ViewerState.keys lists), so no session is needed; it depends on the viewer, so it is never cached (Cache-Control: no-store). There is no total and no unread count: the overlay keeps no read state. Replies, likes, reposts and tips are looked up on the viewer's newest 2000 posts (see `capped`).
+ */
+export interface NotificationPage {
+  /**
+   * The viewer key the page was computed for, as given.
+   */
+  viewer: string
+  /**
+   * Every key treated as the viewer: the given key, its address, its identity key, the identity's bound signing keys and their addresses, and a legacy account's address. Shared custodial keys are never among them.
+   */
+  keys: Key[]
+  /**
+   * The notifications on this page, newest first.
+   */
+  items: NotificationView[]
+  /**
+   * Cursor for the next (older) page, in the same structured form as FeedPage.next: before_ts with before_id. Send it back unchanged with the same viewer and kinds. Null exactly when there is nothing older.
+   */
+  next: FeedCursor | null
+  /**
+   * True when the viewer has more than 2000 posts: replies, likes, reposts and tips on their older posts are not listed. Mentions, follows and friend records are always complete.
+   */
+  capped: boolean
+}
+/**
+ * One thing somebody else did that concerns the viewer, built from a public on-chain record: a reply to one of the viewer's posts, a post that mentions them, a like, repost or tip of one of their posts, a follow, or a friend record naming them. What the viewer did themselves is never listed.
+ */
+export interface NotificationView {
+  /**
+   * Stable id of this notification within the viewer's list: the same record is the same id on every read. A client may remember the ids it has shown (a read marker); the overlay keeps no read state. Treat it as opaque.
+   */
+  id: string
+  /**
+   * reply: a reply to one of the viewer's posts. mention: a post that names the viewer (a MAP mention of one of their keys); a reply to the viewer that also mentions them is listed once, as the reply. like, repost, tip: of one of the viewer's posts. follow: a follow record of one of the viewer's keys or handle forms, once per follower (its latest). friend_request: a friend record naming the viewer's identity. friend_accepted: the same, when the viewer had already sent the actor one (their answer to the viewer's request). Open set: render an unknown kind generically.
+   */
+  kind:
+    | 'reply'
+    | 'mention'
+    | 'like'
+    | 'repost'
+    | 'tip'
+    | 'follow'
+    | 'friend_request'
+    | 'friend_accepted'
+  /**
+   * When the record was indexed, ISO 8601 in UTC with a trailing Z. Notifications are ordered by this time, newest first, ties by id. Null when the record carries no usable time (some imported follows); those sort last.
+   */
+  createdAt: string | null
+  /**
+   * Who did it, exactly as indexed: usually a key (a P2PKH address or a public key; an identity key for friend records). Some imported records carry only a placeholder such as unknown, and then `actor` is null.
+   */
+  actorKey: string
+  /**
+   * Who did it, baked exactly like a post author, so the name, handle and picture match that person's posts. Null when actorKey is not a key.
+   */
+  actor: AuthorView | null
+  /**
+   * The transaction that made it: the reply or the mentioning post, the like, the repost, the payment. Null for follows and friend records (indexed without one) and for likes indexed without their transaction id.
+   */
+  txid: Txid | null
+  /**
+   * What the actor wrote: the reply (reply) or the post (mention). Null for the other kinds, and when the post is not indexed.
+   */
+  post: NotificationPost | null
+  /**
+   * The viewer's post this is about: the post replied to (reply), liked (like), reposted (repost) or tipped (tip). Null for mention, follow and the friend kinds.
+   */
+  subject: NotificationPost | null
+  /**
+   * tip only: the satoshis the chain shows reached the post's author (the payment's indexed amount, never the sender's claim; the same amount PostCounts.tipSats sums). Null for the other kinds.
+   */
+  sats: number | null
+  /**
+   * like only: the like's emoji as written on-chain, as Reaction.emoji. Null for the other kinds and for likes without one. Untrusted user text.
+   */
+  emoji: string | null
+}
+/**
+ * Just enough of a post to say which one a notification is about: its id, type and the start of its text. Open the post with GET /v2/post/{txid} for the rest.
+ */
+export interface NotificationPost {
+  txid: Txid
+  /**
+   * Bitcoin Schema MAP type as indexed (post, reply, repost, ...), as PostView.type.
+   */
+  type: string
+  /**
+   * The start of the text body (MAP content, falling back to the B content), at most 280 characters (Unicode code points). Null when the body is binary media or empty. Untrusted user input: render it as text, or sanitize it before rendering it as markup.
+   */
+  text: string | null
+  /**
+   * Length of the full text in characters (Unicode code points). 0 when `text` is null.
+   */
+  textLength: number
+  /**
+   * True when `text` is only the start of the body.
+   */
+  textTruncated: boolean
+  /**
+   * B-protocol media type of the body as written on-chain (text/plain, text/markdown, image/jpeg, ...). Null when unset.
+   */
+  mediaType: string | null
 }
 /**
  * Body of every non-2xx /v2 response.

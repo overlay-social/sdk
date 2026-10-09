@@ -5,7 +5,8 @@
 //    gets the same author, counts and media for a post.
 //  - `createOverlayClient()` speaks the /v1 facade, unchanged, for existing
 //    callers and for the endpoints /v2 does not cover yet (identity bundles,
-//    friends, notifications, follows, blocks, topic state).
+//    friends, follows, blocks, topic state; `getNotifications()` stays for /v1
+//    callers, `notifications()` on the /v2 client replaces it).
 export * from './v1.js'
 export * from './v2.js'
 export type * from './peck-view/types.js'

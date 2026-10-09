@@ -88,6 +88,16 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   `MessagesQuery`, `AuthorsQuery`, `messagesSearchParams`,
   `authorsSearchParams`; the view types `MessagePage`, `MessageView`,
   `AuthorList` and `AuthorListItem`.
+- `/v2` client: `notifications(query)` reads `GET /v2/notifications`
+  (`NotificationPage`): what other people did that concerns one person
+  (`viewer`: an address or a public key), newest first, with an exact `next`
+  cursor and an optional `kinds` filter: `reply`, `mention`, `like`, `repost`,
+  `tip`, `follow`, `friend_request`, `friend_accepted`. A query without a
+  viewer is rejected before a request is made. New exports:
+  `NotificationsQuery`, `NotificationKind`, `notificationsSearchParams`; the
+  view types `NotificationPage`, `NotificationView` and `NotificationPost`.
+  The vendored contract also carries the overlay's clarified
+  `PostView.channel` and `PostCounts.tipSats` descriptions.
 - `/v2` client: location filters on `feed()`. `hasGeo` keeps posts with a
   location, `bbox: { minLat, minLng, maxLat, maxLng }` a rectangle (latitude
   first; `minLng` greater than `maxLng` crosses the antimeridian) and

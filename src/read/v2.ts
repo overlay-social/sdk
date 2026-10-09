@@ -4,8 +4,8 @@
  * /v2 hands out views that are already hydrated on the overlay (author, counts,
  * media, one level of referenced post, a parent stub), so a screen needs one
  * call instead of a feed request plus enrichment. Every view is
- * viewer-independent and cacheable by URL; the only per-viewer read is
- * `viewerState()`.
+ * viewer-independent and cacheable by URL; the per-viewer reads are
+ * `viewerState()` and `notifications()`, which the overlay never caches.
  *
  * Error model (unlike the /v1 client, nothing here is best-effort):
  *  - A non-2xx response throws a `ReadError` whose `code` is the contract's
@@ -26,6 +26,8 @@ import type {
   IdentityList,
   LensList,
   MessagePage,
+  NotificationView,
+  NotificationPage,
   PostBatch,
   ProfileView,
   Reaction,
@@ -305,6 +307,25 @@ export interface AuthorsQuery {
   cursor?: FeedCursor | null
 }
 
+/** What a notification is about (`NotificationView['kind']`). */
+export type NotificationKind = NotificationView['kind']
+
+/** Query for `notifications()`. */
+export interface NotificationsQuery {
+  /**
+   * The person: a P2PKH address or a compressed public key, their login (signing)
+   * key or their identity key. Every key that signs for them counts; the page's
+   * `keys` lists them.
+   */
+  viewer: string
+  /** Only these kinds. Overlay default: every kind. */
+  kinds?: readonly NotificationKind[]
+  /** 1–100. Overlay default: 50. */
+  limit?: number
+  /** Continue after a previous page: pass that page's `next` unchanged, with the same viewer and kinds. */
+  cursor?: FeedCursor | null
+}
+
 /** Per-call options. */
 export interface ReadRequestOptions {
   /** Aborts the request (and every chunk of a chunked call). */
@@ -464,6 +485,19 @@ export function authorsSearchParams(query: AuthorsQuery = {}): URLSearchParams {
   return qs
 }
 
+/** The query string for `GET /v2/notifications`. */
+export function notificationsSearchParams(query: NotificationsQuery): URLSearchParams {
+  const kinds = Array.from(new Set((query.kinds ?? []).map((k) => k.trim()).filter(Boolean)))
+  const qs = toSearchParams({
+    viewer: query.viewer.trim(),
+    kinds: kinds.length ? kinds.join(',') : undefined,
+    limit: limitParam(query.limit),
+  })
+  // before_ts + before_id, sent back as given.
+  for (const [k, v] of Object.entries(query.cursor ?? {})) qs.set(k, String(v))
+  return qs
+}
+
 function toSearchParams(p: Params): URLSearchParams {
   const qs = new URLSearchParams()
   for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') qs.set(k, v)
@@ -500,6 +534,8 @@ const isMessagePage = (b: unknown): b is MessagePage =>
   isObject(b) && Array.isArray(b.items) && (b.next === null || isObject(b.next))
 const isAuthorList = (b: unknown): b is AuthorList =>
   isObject(b) && Array.isArray(b.items) && typeof b.total === 'number' && typeof b.capped === 'boolean'
+const isNotificationPage = (b: unknown): b is NotificationPage =>
+  isObject(b) && Array.isArray(b.items) && Array.isArray(b.keys) && typeof b.capped === 'boolean' && (b.next === null || isObject(b.next))
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -736,6 +772,25 @@ export class ReadClient {
       return Promise.reject(new ReadError('bad_request', 0, '/v2/messages', 'name what to read: channel, scope: "global", recipient or author'))
     }
     return this.request('GET', `/v2/messages?${messagesSearchParams(query).toString()}`, undefined, isMessagePage, opts)
+  }
+
+  /**
+   * `GET /v2/notifications`: what other people did that concerns one person,
+   * newest first, a page at a time: replies to their posts, posts that mention
+   * them, likes, reposts and tips of their posts, follows and friend records.
+   * Built from public chain records, so no session is needed; the overlay never
+   * caches the answer and keeps no read state: each item's `id` is stable, so
+   * remember the ids you have shown yourself. Actors are baked like post
+   * authors; `post` and `subject` are short excerpts (open the post with
+   * `post()`). Replies, likes, reposts and tips are looked up on the person's
+   * newest 2000 posts (`capped` says when they have more). Page on with
+   * `query.cursor = page.next`. A query without a viewer is rejected here
+   * without a request.
+   */
+  notifications(query: NotificationsQuery, opts?: ReadRequestOptions): Promise<NotificationPage> {
+    const viewer = typeof query?.viewer === 'string' ? query.viewer.trim() : ''
+    if (!viewer) return Promise.reject(new ReadError('bad_request', 0, '/v2/notifications', 'viewer is required'))
+    return this.request('GET', `/v2/notifications?${notificationsSearchParams({ ...query, viewer }).toString()}`, undefined, isNotificationPage, opts)
   }
 
   /**

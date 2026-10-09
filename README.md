@@ -147,6 +147,26 @@ const twetchers = await overlay.authors({ app: 'twetch' })
 const treechatNames = await overlay.authors({ app: 'treechat', by: 'name' })
 ```
 
+**Notifications.** `notifications()` lists what other people did that
+concerns one person, newest first: replies to their posts, posts that mention
+them, likes, reposts and tips of their posts, follows and friend records. Pass
+the person's key (their login key or their identity key; every key that signs
+for them counts, and the page's `keys` lists them). It is built from public
+chain records, so it needs no session, and the overlay never caches it. There
+is no unread count and no read state: each item's `id` is stable, so remember
+the ids you have shown. Actors are baked like post authors; `post` (what they
+wrote) and `subject` (which of the person's posts) are short excerpts.
+
+```ts
+const page = await overlay.notifications({ viewer: loginKey, limit: 30 })
+for (const n of page.items) console.log(n.kind, n.actor?.displayName, n.subject?.text)
+const replies = await overlay.notifications({ viewer: loginKey, kinds: ['reply', 'mention'] })
+const older = page.next && (await overlay.notifications({ viewer: loginKey, cursor: page.next }))
+```
+
+Replies, likes, reposts and tips are looked up on the person's newest 2000
+posts; `capped` is true when they have more.
+
 **Errors.** Every failure throws a `ReadError` with a stable `code` and the
 HTTP `status` (0 when there was no response):
 

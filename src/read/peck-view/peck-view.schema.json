@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://overlay.peck.to/contracts/peck-view/v1/peck-view.schema.json",
-  "$comment": "Vendored copy of the peck-view/v1 contract (source sha256 be300305ccc3bda9e272f4f4a7660988941ce4f2e28d05e78461c00469988f36). Written by scripts/sync-peck-view.mjs; do not edit by hand.",
+  "$comment": "Vendored copy of the peck-view/v1 contract (source sha256 af97b2574a086282b4adeaca2ccaf5348acbbf5b5b5275338bc677b7e5ddba03). Written by scripts/sync-peck-view.mjs; do not edit by hand.",
   "title": "PeckView",
   "description": "peck-view/v1: the hydrated read model served by the overlay under /v2. The overlay (producer) owns this contract; clients and the SDK consume it. Every view is viewer-independent: nothing in a PostView, ThreadView, ProfileView or FeedPage depends on who asks, so responses can be cached by URL. Per-viewer facts (liked by me, following, blocked) live only in ViewerState. Evolution rules: within v1 the overlay may ADD optional properties and ADD enum values documented as open; it never removes, renames or retypes a property. Consumers must ignore properties they do not know. A breaking change is a new contract version (peck-view/v2) served side by side. The producer validates its own responses strictly (additionalProperties: false), so a leaked database column fails the overlay's own contract tests. TypeScript types are generated from this schema.",
   "anyOf": [
@@ -43,6 +43,9 @@
     },
     {
       "$ref": "#/$defs/LensList"
+    },
+    {
+      "$ref": "#/$defs/NotificationPage"
     },
     {
       "$ref": "#/$defs/ErrorResponse"
@@ -311,7 +314,7 @@
         "tipSats": {
           "type": "integer",
           "minimum": 0,
-          "description": "Satoshis paid with this post as the payment's context, summed over every indexed payment."
+          "description": "Satoshis the chain shows reached this post's author from payments that name this post (MAP type=payment, tx=<this post>), summed over every indexed payment: P2PKH outputs to the author's signing address, a BRC-29 output whose payment record publishes its key linkage, or Twetch's author share of a paid action. A payment's own claimed `value` is never counted, so a BRC-29 tip that does not publish its linkage adds nothing."
         },
         "lockedSats": {
           "type": "integer",
@@ -584,7 +587,7 @@
             "string",
             "null"
           ],
-          "description": "MAP channel (rarely used). Null when unset."
+          "description": "The channel this post names in its own MAP `channel` field, as written. A reply or a repost is not placed in its parent's channel: it reports a channel only when it names one itself, and peck.to's clients never write one on a reply, so a client that wants to show where a thread lives reads the thread root's `channel`. /v1 serves the same value. Null when unset."
         },
         "geo": {
           "anyOf": [
@@ -1752,6 +1755,214 @@
             "$ref": "#/$defs/Lens"
           },
           "description": "At most `limit` lenses, newest first."
+        }
+      }
+    },
+    "NotificationPost": {
+      "title": "NotificationPost",
+      "description": "Just enough of a post to say which one a notification is about: its id, type and the start of its text. Open the post with GET /v2/post/{txid} for the rest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "txid",
+        "type",
+        "text",
+        "textLength",
+        "textTruncated",
+        "mediaType"
+      ],
+      "properties": {
+        "txid": {
+          "$ref": "#/$defs/Txid",
+          "description": "The post's transaction id."
+        },
+        "type": {
+          "type": "string",
+          "description": "Bitcoin Schema MAP type as indexed (post, reply, repost, ...), as PostView.type."
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The start of the text body (MAP content, falling back to the B content), at most 280 characters (Unicode code points). Null when the body is binary media or empty. Untrusted user input: render it as text, or sanitize it before rendering it as markup."
+        },
+        "textLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Length of the full text in characters (Unicode code points). 0 when `text` is null."
+        },
+        "textTruncated": {
+          "type": "boolean",
+          "description": "True when `text` is only the start of the body."
+        },
+        "mediaType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "B-protocol media type of the body as written on-chain (text/plain, text/markdown, image/jpeg, ...). Null when unset."
+        }
+      }
+    },
+    "NotificationView": {
+      "title": "NotificationView",
+      "description": "One thing somebody else did that concerns the viewer, built from a public on-chain record: a reply to one of the viewer's posts, a post that mentions them, a like, repost or tip of one of their posts, a follow, or a friend record naming them. What the viewer did themselves is never listed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "createdAt",
+        "actorKey",
+        "actor",
+        "txid",
+        "post",
+        "subject",
+        "sats",
+        "emoji"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Stable id of this notification within the viewer's list: the same record is the same id on every read. A client may remember the ids it has shown (a read marker); the overlay keeps no read state. Treat it as opaque."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "reply",
+            "mention",
+            "like",
+            "repost",
+            "tip",
+            "follow",
+            "friend_request",
+            "friend_accepted"
+          ],
+          "description": "reply: a reply to one of the viewer's posts. mention: a post that names the viewer (a MAP mention of one of their keys); a reply to the viewer that also mentions them is listed once, as the reply. like, repost, tip: of one of the viewer's posts. follow: a follow record of one of the viewer's keys or handle forms, once per follower (its latest). friend_request: a friend record naming the viewer's identity. friend_accepted: the same, when the viewer had already sent the actor one (their answer to the viewer's request). Open set: render an unknown kind generically."
+        },
+        "createdAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "When the record was indexed, ISO 8601 in UTC with a trailing Z. Notifications are ordered by this time, newest first, ties by id. Null when the record carries no usable time (some imported follows); those sort last."
+        },
+        "actorKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who did it, exactly as indexed: usually a key (a P2PKH address or a public key; an identity key for friend records). Some imported records carry only a placeholder such as unknown, and then `actor` is null."
+        },
+        "actor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Who did it, baked exactly like a post author, so the name, handle and picture match that person's posts. Null when actorKey is not a key."
+        },
+        "txid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Txid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The transaction that made it: the reply or the mentioning post, the like, the repost, the payment. Null for follows and friend records (indexed without one) and for likes indexed without their transaction id."
+        },
+        "post": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotificationPost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the actor wrote: the reply (reply) or the post (mention). Null for the other kinds, and when the post is not indexed."
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NotificationPost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The viewer's post this is about: the post replied to (reply), liked (like), reposted (repost) or tipped (tip). Null for mention, follow and the friend kinds."
+        },
+        "sats": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "tip only: the satoshis the chain shows reached the post's author (the payment's indexed amount, never the sender's claim; the same amount PostCounts.tipSats sums). Null for the other kinds."
+        },
+        "emoji": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "like only: the like's emoji as written on-chain, as Reaction.emoji. Null for the other kinds and for likes without one. Untrusted user text."
+        }
+      }
+    },
+    "NotificationPage": {
+      "title": "NotificationPage",
+      "description": "Response of GET /v2/notifications?viewer=<key>: what other people did that concerns one person, newest first, a page at a time (limit 1-100, default 50). Built from public on-chain records looked up by the viewer's keys (the same set ViewerState.keys lists), so no session is needed; it depends on the viewer, so it is never cached (Cache-Control: no-store). There is no total and no unread count: the overlay keeps no read state. Replies, likes, reposts and tips are looked up on the viewer's newest 2000 posts (see `capped`).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "viewer",
+        "keys",
+        "items",
+        "next",
+        "capped"
+      ],
+      "properties": {
+        "viewer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The viewer key the page was computed for, as given."
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Key"
+          },
+          "description": "Every key treated as the viewer: the given key, its address, its identity key, the identity's bound signing keys and their addresses, and a legacy account's address. Shared custodial keys are never among them."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NotificationView"
+          },
+          "description": "The notifications on this page, newest first."
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeedCursor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cursor for the next (older) page, in the same structured form as FeedPage.next: before_ts with before_id. Send it back unchanged with the same viewer and kinds. Null exactly when there is nothing older."
+        },
+        "capped": {
+          "type": "boolean",
+          "description": "True when the viewer has more than 2000 posts: replies, likes, reposts and tips on their older posts are not listed. Mentions, follows and friend records are always complete."
         }
       }
     },

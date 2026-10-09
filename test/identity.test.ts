@@ -395,7 +395,8 @@ function sourcesFor(a: AuthorView): AuthorSources {
   }
   if (a.nameSource === 'account' || a.avatarSource === 'account' || a.paymail) {
     s.account = {
-      address: a.address, publicKey: null, identityKey: null,
+      // A legacy account row may carry the identity key (AuthorView.identityKey's second source).
+      address: a.address, publicKey: null, identityKey: a.identityKey,
       displayName: a.nameSource === 'account' ? a.displayName : null,
       paymail: a.paymail, avatarUrl: a.avatarSource === 'account' ? a.avatarRef : null, bio: null,
     }
@@ -416,7 +417,7 @@ describe('peck-view/v1 contract examples', () => {
   it('finds authors of every kind', () => {
     expect(authors.length).toBeGreaterThanOrEqual(10)
     const kinds = new Set(authors.map((a) => a.author.nameSource))
-    expect([...kinds].sort()).toEqual(['external', 'identity', 'key', 'tx'])
+    expect([...kinds].sort()).toEqual(['account', 'external', 'identity', 'key', 'tx'])
   })
 
   for (const { where, author } of authors) {

@@ -1,0 +1,264 @@
+{
+  "viewer": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+  "keys": [
+    "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+    "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1"
+  ],
+  "capped": false,
+  "items": [
+    {
+      "id": "friend:f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3.0",
+      "kind": "friend_request",
+      "createdAt": "2026-09-30T09:50:00Z",
+      "actorKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+      "actor": {
+        "key": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "handle": null,
+        "displayName": "027eaf…9ad0",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": null,
+      "post": null,
+      "subject": null,
+      "sats": null,
+      "emoji": null
+    },
+    {
+      "id": "friend:f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2.0",
+      "kind": "friend_accepted",
+      "createdAt": "2026-09-30T09:45:00Z",
+      "actorKey": "02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7",
+      "actor": {
+        "key": "02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7",
+        "address": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "identityKey": "02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7",
+        "handle": null,
+        "displayName": "Old Timer",
+        "nameSource": "account",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7?seed=1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "paymail": "oldtimer@peck.to",
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": null,
+      "post": null,
+      "subject": null,
+      "sats": null,
+      "emoji": null
+    },
+    {
+      "id": "mention:7777777777777777777777777777777777777777777777777777777777777777",
+      "kind": "mention",
+      "createdAt": "2026-09-30T09:30:00Z",
+      "actorKey": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+      "actor": {
+        "key": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "address": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "identityKey": "02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7",
+        "handle": null,
+        "displayName": "Old Timer",
+        "nameSource": "account",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ?seed=1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "paymail": "oldtimer@peck.to",
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": "7777777777777777777777777777777777777777777777777777777777777777",
+      "post": {
+        "txid": "7777777777777777777777777777777777777777777777777777777777777777",
+        "type": "post",
+        "text": "hey @ada look",
+        "textLength": 13,
+        "textTruncated": false,
+        "mediaType": "text/markdown"
+      },
+      "subject": null,
+      "sats": null,
+      "emoji": null
+    },
+    {
+      "id": "tip:d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+      "kind": "tip",
+      "createdAt": "2026-09-30T09:20:00Z",
+      "actorKey": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+      "actor": {
+        "key": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "address": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "identityKey": "02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7",
+        "handle": null,
+        "displayName": "Old Timer",
+        "nameSource": "account",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ?seed=1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "paymail": "oldtimer@peck.to",
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+      "post": null,
+      "subject": {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "type": "reply",
+        "text": "A **read model** for peck.",
+        "textLength": 26,
+        "textTruncated": false,
+        "mediaType": "text/markdown"
+      },
+      "sats": 2500,
+      "emoji": null
+    },
+    {
+      "id": "follow:1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+      "kind": "follow",
+      "createdAt": "2026-09-30T09:11:00Z",
+      "actorKey": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+      "actor": {
+        "key": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "address": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "identityKey": "02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7",
+        "handle": null,
+        "displayName": "Old Timer",
+        "nameSource": "account",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ?seed=1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "paymail": "oldtimer@peck.to",
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": null,
+      "post": null,
+      "subject": null,
+      "sats": null,
+      "emoji": null
+    },
+    {
+      "id": "like:c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+      "kind": "like",
+      "createdAt": "2026-09-30T09:06:00Z",
+      "actorKey": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+      "actor": {
+        "key": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": null,
+        "handle": null,
+        "displayName": "1Zf91M…iLn4",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+      "post": null,
+      "subject": {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "type": "reply",
+        "text": "A **read model** for peck.",
+        "textLength": 26,
+        "textTruncated": false,
+        "mediaType": "text/markdown"
+      },
+      "sats": null,
+      "emoji": "🔥"
+    },
+    {
+      "id": "repost:4444444444444444444444444444444444444444444444444444444444444444",
+      "kind": "repost",
+      "createdAt": "2026-09-30T09:05:00Z",
+      "actorKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+      "actor": {
+        "key": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "handle": null,
+        "displayName": "027eaf…9ad0",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": "4444444444444444444444444444444444444444444444444444444444444444",
+      "post": null,
+      "subject": {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "type": "reply",
+        "text": "A **read model** for peck.",
+        "textLength": 26,
+        "textTruncated": false,
+        "mediaType": "text/markdown"
+      },
+      "sats": null,
+      "emoji": null
+    },
+    {
+      "id": "reply:3333333333333333333333333333333333333333333333333333333333333333",
+      "kind": "reply",
+      "createdAt": "2026-09-30T09:01:00Z",
+      "actorKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+      "actor": {
+        "key": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "address": "1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "identityKey": "027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0",
+        "handle": null,
+        "displayName": "027eaf…9ad0",
+        "nameSource": "key",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/027eaf2356970f90253bbd7b1b44df5cacd07a753e817b52034c939dce92829ad0?seed=1Zf91MnjiTV6gjBzobtNJ3RjQrP9QiLn4",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": null
+      },
+      "txid": "3333333333333333333333333333333333333333333333333333333333333333",
+      "post": {
+        "txid": "3333333333333333333333333333333333333333333333333333333333333333",
+        "type": "reply",
+        "text": "Indexed.",
+        "textLength": 8,
+        "textTruncated": false,
+        "mediaType": "text/plain"
+      },
+      "subject": {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "type": "reply",
+        "text": "A **read model** for peck.",
+        "textLength": 26,
+        "textTruncated": false,
+        "mediaType": "text/markdown"
+      },
+      "sats": null,
+      "emoji": null
+    }
+  ],
+  "next": {
+    "before_ts": "2026-09-30T09:01:00Z",
+    "before_id": "reply:3333333333333333333333333333333333333333333333333333333333333333"
+  }
+}

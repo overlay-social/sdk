@@ -14,6 +14,7 @@ import {
   type IdentityList,
   type LensList,
   type MessagePage,
+  type NotificationPage,
   type PostBatch,
   type ProfileView,
   type ReactionPage,
@@ -35,6 +36,7 @@ const EXAMPLE_TYPES: Record<string, PeckViewTypeName> = {
   'lens-list.json': 'LensList',
   'message-page-direct.json': 'MessagePage',
   'message-page.json': 'MessagePage',
+  'notification-page.json': 'NotificationPage',
   'post-batch-geo.json': 'PostBatch',
   'post-batch.json': 'PostBatch',
   'profile-view.json': 'ProfileView',
@@ -236,6 +238,26 @@ describe('the /v2 client returns each example typed', () => {
     expect(calls[0]?.url).toBe(`https://overlay.example/v2/messages?recipient=${recipient}`)
     expect(page.items[0]).toMatchObject({ direct: true, channel: null, paywalled: false })
     expect(page.next).toBeNull()
+  })
+
+  it('notifications() -> NotificationPage: every kind, baked actors, excerpts, the cursor back unchanged', async () => {
+    const example = load('notification-page.json') as NotificationPage
+    const { client, calls } = serving(example)
+    const page = await client.notifications({ viewer: example.viewer, limit: 8 })
+    expect(page).toEqual(example)
+    expect(calls[0]?.url).toBe(`https://overlay.example/v2/notifications?viewer=${example.viewer}&limit=8`)
+    expect(new Set(page.items.map((n) => n.kind))).toEqual(new Set(['reply', 'mention', 'like', 'repost', 'tip', 'follow', 'friend_request', 'friend_accepted']))
+    const reply = page.items.find((n) => n.kind === 'reply')!
+    expect(reply.post?.txid).toBe(reply.txid)
+    expect(reply.subject?.txid).toMatch(/^[0-9a-f]{64}$/)
+    expect(page.items.find((n) => n.kind === 'tip')?.sats).toBeGreaterThan(0)
+    expect(page.keys).toContain(example.viewer)
+    expect(page.next).toEqual({ before_ts: reply.createdAt, before_id: reply.id })
+    const older = serving(example)
+    await older.client.notifications({ viewer: example.viewer, kinds: ['reply', 'like'], cursor: page.next })
+    const u = new URL(older.calls[0]!.url)
+    expect(u.searchParams.get('kinds')).toBe('reply,like')
+    expect(u.searchParams.get('before_id')).toBe(reply.id)
   })
 
   it('authors() -> AuthorList, a shared custodial key included', async () => {
