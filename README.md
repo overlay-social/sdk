@@ -320,6 +320,7 @@ separate ESM entry point with its own type declarations).
 | `@overlay-social/sdk/submit` | Send a signed transaction from the browser to the overlay, with a typed error for every failure | available |
 | `@overlay-social/sdk/identity` | The rules for showing an author: display name, handle, short key and avatar URL, the same ones the overlay applies | available |
 | `@overlay-social/sdk/sanitize` | One HTML sanitising profile for chain content: markdown to safe HTML for browsers and server rendering | available |
+| `@overlay-social/sdk/links` | Public addresses of a post (`peck.to/tx/<txid>`) and of a located post on peck.world, built as peck.to builds them | available |
 | `@overlay-social/sdk/dm` | End-to-end encrypted direct messages: BRC-42 envelopes and a message-box client, compatible with peck.to | available |
 | `@overlay-social/sdk/peckos` | Bridge client for apps that run inside Peck OS | available |
 
@@ -768,6 +769,22 @@ a person: `bakeAuthor` ignores identity, account and handle for it, and
 `bakeAuthor` needs `@bsv/sdk` to derive the address of a public key, so it is
 the one part of this module that is not tiny; the display helpers above pull in
 nothing else.
+
+## Links to a post (`/links`)
+
+```ts
+import { postUrl, worldUrl } from '@overlay-social/sdk/links'
+
+postUrl(txid)                    // https://peck.to/tx/<txid>
+worldUrl(txid, 59.9139, 10.7522) // https://peck.world/?tx=<txid>&at=59.9139,10.7522
+```
+
+The addresses peck.to's thread page and location chip use. Coordinates are
+written with at most 6 decimals, no trailing zeros and no exponent. Both
+functions return `null` for a txid that is not 64 hex characters and, for
+`worldUrl`, for coordinates that are not a place on Earth, so a renderer can
+leave the link out. A third argument (`postUrl`) or fourth (`worldUrl`) names
+another host, such as a preview host.
 
 ## Direct messages (`/dm`)
 

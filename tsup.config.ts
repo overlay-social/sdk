@@ -16,6 +16,7 @@ export default defineConfig({
     escape: 'src/sanitize/escape.ts',
     peckos: 'src/peckos/index.ts',
     dm: 'src/dm/index.ts',
+    links: 'src/links/index.ts',
   },
   format: ['esm'],
   dts: true,

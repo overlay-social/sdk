@@ -182,6 +182,10 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
   before it is rendered: `http(s)` addresses (normalised, as peck.to v2 does)
   and inline `data:image/` pictures up to 64 KiB pass; `javascript:`, other
   `data:` types and everything else give `null`.
+- `@overlay-social/sdk/links`: `postUrl(txid)` gives `https://peck.to/tx/<txid>`
+  and `worldUrl(txid, lat, lng)` gives `https://peck.world/?tx=<txid>&at=<lat>,<lng>`,
+  with coordinates written as peck.to's location chip writes them (at most 6
+  decimals, no exponent). Both return `null` for input that is not an address.
 
 ### Changed
 - `identity`: `monogram()` follows peck.to's rule: the first letter or digit
