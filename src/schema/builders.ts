@@ -21,6 +21,7 @@ import { PIPE, PROTO_B, PROTO_MAP, SchemaError, payload, type Push, type SchemaP
 import { geoFields, type GeoInput } from './geo.js'
 
 const TXID_RE = /^[0-9a-fA-F]{64}$/
+const LINKAGE_RE = /^[0-9a-fA-F]{64}$/
 
 /** Fields every builder takes. */
 export interface BaseInput {
@@ -124,6 +125,15 @@ export interface PaymentInput extends BaseInput {
   recipient: string
   /** Satoshis paid: a whole number, 1 or more. Written as MAP `value`. */
   amount: number
+  /**
+   * The BRC-29 specific key linkage of the payment output (64 hex
+   * characters), written as MAP `linkage` after `value`. Readers credit a
+   * BRC-29 tip only when the record carries it: the payee key is then
+   * `recipient + linkage·G`, which anyone can recompute. Get it from
+   * `brc29Linkage()`, or let `tip()` build the whole tip. Optional, so v1
+   * style records stay byte-identical.
+   */
+  linkage?: string
 }
 
 export interface MessageInput extends BaseInput {
@@ -328,11 +338,12 @@ export function tag(input: TagInput): SchemaPayload {
 
 /**
  * The social record of a tip: `SET app <app> type payment tx <post> paymail
- * <recipient> value <sats>`, laid out as the peck.to v1 client writes it. It
- * says that this transaction pays for that post. The money moves in the other
- * outputs of the same transaction; build the payment to the author's identity
- * key with `brc29Output()`, and give the wallet both outputs in one
- * `createAction` with no fee rate (the wallet chooses it).
+ * <recipient> value <sats>`, laid out as the peck.to v1 client writes it, and
+ * `linkage <L>` after it when given. It says that this transaction pays for
+ * that post. The money moves in the other outputs of the same transaction;
+ * build the payment to the author's identity key with `brc29Output()`, and
+ * give the wallet both outputs in one `createAction` with no fee rate (the
+ * wallet chooses it). `tip()` does all of it, linkage included.
  *
  * v1 wrote `tx global` for a tip with no post; this builder needs a post.
  */
@@ -340,11 +351,18 @@ export function payment(input: PaymentInput): SchemaPayload {
   if (!Number.isSafeInteger(input.amount) || input.amount < 1) {
     throw new SchemaError('amount must be a whole number of satoshis, 1 or more')
   }
-  return mapOnly(input.app, 'payment', [
+  const fields: Push[] = [
     'tx', txid('targetTxid', input.targetTxid),
     'paymail', required('recipient', input.recipient),
     'value', String(input.amount),
-  ])
+  ]
+  if (input.linkage !== undefined) {
+    if (typeof input.linkage !== 'string' || !LINKAGE_RE.test(input.linkage)) {
+      throw new SchemaError('linkage must be 32 bytes of hex (64 characters)')
+    }
+    fields.push('linkage', input.linkage.toLowerCase())
+  }
+  return mapOnly(input.app, 'payment', fields)
 }
 
 /** A chat message to the global room, a channel, or (in the clear) one recipient. */

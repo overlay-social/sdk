@@ -18,13 +18,32 @@
  * No fee rate is set here or anywhere in the SDK: the sender's wallet chooses
  * it when it builds the transaction.
  */
-import { P2PKH, PublicKey, Random, Utils, type WalletInterface, type WalletProtocol } from '@bsv/sdk'
+import {
+  BigNumber,
+  Curve,
+  P2PKH,
+  ProtoWallet,
+  PublicKey,
+  Random,
+  Utils,
+  type WalletInterface,
+  type WalletProtocol,
+} from '@bsv/sdk'
 import { SchemaError } from './bitcom.js'
 
 /** The BRC-29 wallet-payment protocol. */
 export const BRC29_PROTOCOL: WalletProtocol = [2, '3241645161d8']
 
+/**
+ * The verifier a tip's key linkage is revealed to: the public key of private
+ * key 1 (the BRC-100 "anyone" key). A linkage encrypted for it can be
+ * decrypted by anyone, which is the point: the linkage is published in the
+ * tip record for every reader to check.
+ */
+export const BRC29_LINKAGE_VERIFIER = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
+
 const PUBKEY_RE = /^0[23][0-9a-fA-F]{64}$/
+const LINKAGE_RE = /^[0-9a-fA-F]{64}$/
 
 /** The one wallet call a BRC-29 output needs; any BRC-100 `WalletInterface` has it. */
 export type Brc29Wallet = Pick<WalletInterface, 'getPublicKey'>
@@ -72,7 +91,8 @@ function part(name: string, v: string | undefined): string {
 }
 
 /**
- * Build the BRC-29 payment output for a tip. Use the returned fields as an
+ * Build the BRC-29 payment output for a tip. `tip()` builds the whole tip,
+ * including the key linkage readers need to count it. Use the returned fields as an
  * output of `createAction` (`lockingScript`, `satoshis`, `outputDescription`,
  * `customInstructions`) next to the signed payment record from `payment()`:
  *
@@ -119,4 +139,143 @@ export async function brc29Output(wallet: Brc29Wallet, input: Brc29OutputInput):
     customInstructions: JSON.stringify({ derivationPrefix, derivationSuffix, payee: recipient }),
     remittance: { derivationPrefix, derivationSuffix, senderIdentityKey: sender.publicKey.toLowerCase() },
   }
+}
+
+/** The one wallet call `brc29Linkage()` needs; any BRC-100 `WalletInterface` has it. */
+export type Brc29LinkageWallet = Pick<WalletInterface, 'revealSpecificKeyLinkage'>
+
+/**
+ * Why a key linkage could not be had:
+ *
+ *   unsupported  the wallet has no `revealSpecificKeyLinkage`
+ *   refused      the wallet threw (the user declined, or the wallet failed);
+ *                the wallet's error is the `cause`
+ *   invalid      the wallet answered, but the linkage does not decrypt to 32
+ *                bytes, or does not derive the key the payment output pays
+ */
+export type Brc29LinkageErrorReason = 'unsupported' | 'refused' | 'invalid'
+
+export class Brc29LinkageError extends Error {
+  override readonly name = 'Brc29LinkageError'
+  readonly reason: Brc29LinkageErrorReason
+
+  constructor(reason: Brc29LinkageErrorReason, message: string, options: { cause?: unknown } = {}) {
+    super(message, options.cause === undefined ? undefined : { cause: options.cause })
+    this.reason = reason
+  }
+}
+
+export interface Brc29LinkageInput {
+  /** The payee's identity key (66 hex characters), as given to `brc29Output()`. */
+  recipientIdentityKey: string
+  /** The output's derivation prefix (`remittance.derivationPrefix`). */
+  derivationPrefix: string
+  /** The output's derivation suffix (`remittance.derivationSuffix`). */
+  derivationSuffix: string
+  /** Passed to the wallet as the calling app's originator, when set. */
+  originator?: string
+}
+
+function linkageBytes(v: unknown): number[] {
+  if (Array.isArray(v)) return v as number[]
+  if (v instanceof Uint8Array) return Array.from(v)
+  throw new Brc29LinkageError('invalid', 'the wallet returned the key linkage in an unknown format')
+}
+
+/**
+ * The BRC-29 specific key linkage of one payment output, as 64 hex
+ * characters: the scalar L such that the payee key is
+ * `recipientIdentityKey + L·G` (BRC-42; L is the HMAC of the invoice number
+ * `2-3241645161d8-<prefix> <suffix>` keyed by the sender/recipient ECDH
+ * secret).
+ *
+ * One wallet call: `revealSpecificKeyLinkage` with counterparty the
+ * recipient, protocol `BRC29_PROTOCOL`, key ID `<prefix> <suffix>` and
+ * verifier `BRC29_LINKAGE_VERIFIER`. The wallet encrypts the linkage for the
+ * verifier; since the verifier is the "anyone" key, this function decrypts it
+ * here. Wallets with a permission layer may ask the user to approve revealing
+ * a key linkage.
+ *
+ * Revealing L ties this one output to the recipient's identity key, for
+ * everyone. It reveals nothing about other outputs and does not let anyone
+ * spend the output (that takes the recipient's private key plus L).
+ *
+ * Throws `Brc29LinkageError` when the wallet lacks the call, refuses it or
+ * answers with something that is not a linkage.
+ */
+export async function brc29Linkage(wallet: Brc29LinkageWallet, input: Brc29LinkageInput): Promise<string> {
+  if (typeof input.recipientIdentityKey !== 'string' || !PUBKEY_RE.test(input.recipientIdentityKey)) {
+    throw new SchemaError('recipientIdentityKey must be a compressed public key (66 hex characters)')
+  }
+  const recipient = input.recipientIdentityKey.toLowerCase()
+  const keyID = `${part('derivationPrefix', input.derivationPrefix ?? '')} ${part('derivationSuffix', input.derivationSuffix ?? '')}`
+  if (typeof wallet?.revealSpecificKeyLinkage !== 'function') {
+    throw new Brc29LinkageError('unsupported', 'the wallet cannot reveal a key linkage (no revealSpecificKeyLinkage)')
+  }
+  let revealed: Awaited<ReturnType<WalletInterface['revealSpecificKeyLinkage']>>
+  try {
+    revealed = await wallet.revealSpecificKeyLinkage(
+      { counterparty: recipient, verifier: BRC29_LINKAGE_VERIFIER, protocolID: BRC29_PROTOCOL, keyID },
+      input.originator,
+    )
+  } catch (cause) {
+    throw new Brc29LinkageError('refused', 'the wallet did not reveal the key linkage', { cause })
+  }
+  const prover = revealed?.prover
+  if (typeof prover !== 'string' || !PUBKEY_RE.test(prover)) {
+    throw new Brc29LinkageError('invalid', 'the wallet did not say which key revealed the linkage')
+  }
+  let plain: number[]
+  try {
+    const { plaintext } = await new ProtoWallet('anyone').decrypt({
+      ciphertext: linkageBytes(revealed.encryptedLinkage),
+      protocolID: [2, `specific linkage revelation ${BRC29_PROTOCOL[0]} ${BRC29_PROTOCOL[1]}`],
+      keyID,
+      counterparty: prover.toLowerCase(),
+    })
+    plain = plaintext
+  } catch (cause) {
+    if (cause instanceof Brc29LinkageError) throw cause
+    throw new Brc29LinkageError('invalid', 'the key linkage does not decrypt for the public verifier', { cause })
+  }
+  if (plain.length !== 32) {
+    throw new Brc29LinkageError('invalid', `the key linkage is ${plain.length} bytes, not 32`)
+  }
+  return Utils.toHex(plain)
+}
+
+const curve = new Curve()
+
+/**
+ * The P2PKH locking script (hex) that a BRC-29 payment with linkage L pays:
+ * to `recipientIdentityKey + L·G`. This is the check readers run on a tip
+ * record's `paymail` and `linkage` fields; a tip is credited only if one of
+ * its outputs has exactly this script. Throws `SchemaError` on a malformed
+ * key, a linkage that is not 32 bytes of hex, a zero linkage or one at or
+ * above the curve order.
+ */
+export function brc29PayeeScript(recipientIdentityKey: string, linkage: string): string {
+  if (typeof recipientIdentityKey !== 'string' || !PUBKEY_RE.test(recipientIdentityKey)) {
+    throw new SchemaError('recipientIdentityKey must be a compressed public key (66 hex characters)')
+  }
+  if (typeof linkage !== 'string' || !LINKAGE_RE.test(linkage)) {
+    throw new SchemaError('linkage must be 32 bytes of hex (64 characters)')
+  }
+  const l = new BigNumber(linkage.toLowerCase(), 16)
+  if (l.isZero() || l.cmp(curve.n) >= 0) throw new SchemaError('linkage is not a valid scalar')
+  const key = recipientIdentityKey.toLowerCase()
+  let r: PublicKey
+  try {
+    r = PublicKey.fromString(key)
+  } catch {
+    throw new SchemaError('recipientIdentityKey is not a point on the curve')
+  }
+  // fromString reduces an x coordinate at or above the field prime; such a
+  // key is not canonical, and the readers reject it.
+  if (Utils.toHex(r.encode(true) as number[]) !== key) {
+    throw new SchemaError('recipientIdentityKey is not a canonical curve point')
+  }
+  const derived = r.add(curve.g.mul(l))
+  if (derived.isInfinity()) throw new SchemaError('the derived key is the point at infinity')
+  return new P2PKH().lock(PublicKey.fromString(Utils.toHex(derived.encode(true) as number[])).toHash()).toHex()
 }
