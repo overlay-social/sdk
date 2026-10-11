@@ -358,7 +358,7 @@ await wallet.createAction({
 | `follow` / `unfollow({ app, address, handle? })` | `MAP SET type follow\|unfollow [handle] address` |
 | `tag({ app, targetTxid, tags, category?, lang?, tone? })` | `MAP SET type tag context tx tx <target> tags a,b` |
 | `message({ app, text, channel? \| recipient? })` | B `text/plain` + `MAP SET type message` |
-| `payment({ app, targetTxid, recipient, amount })` | `MAP SET type payment tx <post> paymail <recipient> value <sats>` (see [Tips](#tips-and-identity-profiles)) |
+| `payment({ app, targetTxid, recipient, amount, linkage? })` | `MAP SET type payment tx <post> paymail <recipient> value <sats> [linkage <L>]` (see [Tips](#tips-and-identity-profiles)) |
 | `profile({ app, displayName, avatar?, bio?, certRef? })` | `MAP SET type profile display_name …` |
 
 Builders are pure and synchronous and return a `SchemaPayload`. They reject
@@ -418,24 +418,50 @@ The record is `payment()`, signed with `signPayload()` like any other. The
 money is a standard BRC-29 payment to the author's BRC-100 identity key (the
 `identityKey` the overlay returns for each author), built by `brc29Output()`.
 It is not a plain payment to the address a post was signed with: BRC-100
-wallets do not track those coins. Neither call sets a fee rate; the wallet
+wallets do not track those coins. No call sets a fee rate; the wallet
 chooses it.
 
-```ts
-import { brc29Output, payment, signPayload } from '@overlay-social/sdk/schema'
+Use `tip()`, which builds both outputs and makes the tip provable:
 
-const record = await signPayload(payment({ app: 'peck.to', targetTxid, recipient: identityKey, amount: 500 }), { wallet })
-const pay = await brc29Output(wallet, { recipientIdentityKey: identityKey, satoshis: 500 })
-await wallet.createAction({
-  description: 'Tip',
-  outputs: [
-    { lockingScript: record.toHex(), satoshis: 0, outputDescription: 'Tip record' },
-    { lockingScript: pay.lockingScript, satoshis: pay.satoshis, outputDescription: pay.outputDescription, customInstructions: pay.customInstructions },
-  ],
-  options: { randomizeOutputs: false },
-})
-// then hand the transaction and pay.remittance to the recipient (PeerPay / MessageBox)
+```ts
+import { Brc29LinkageError, tip } from '@overlay-social/sdk/schema'
+
+const t = await tip({ app: 'peck.to', targetTxid, recipientIdentityKey: identityKey, satoshis: 500 }, { wallet })
+await wallet.createAction({ description: 'Tip', outputs: t.outputs, options: { randomizeOutputs: false } })
+// then hand the transaction and t.remittance to the recipient (PeerPay / MessageBox)
 ```
+
+**Why the linkage.** Readers count a tip only when the chain proves it reached
+the author. To anyone but the sender and the recipient, a BRC-29 output looks
+like the sender's change, so a record that only claims a `value` is not
+counted. `tip()` therefore asks the wallet for the output's specific key
+linkage (one `revealSpecificKeyLinkage` call: counterparty the recipient,
+protocol `[2, '3241645161d8']`, key ID `<derivationPrefix> <derivationSuffix>`,
+verifier `BRC29_LINKAGE_VERIFIER`, the public "anyone" key) and writes it into
+the record:
+
+```
+MAP SET app <app> type payment tx <post> paymail <identity key> value <sats> linkage <L>
+```
+
+`L` is 64 hex characters, and the payee key is `identity key + L·G`.
+`brc29PayeeScript(identityKey, L)` returns the P2PKH script that key pays,
+which is the check readers run. Revealing `L` ties this one output to the
+author's identity, publicly; it reveals nothing about other outputs and does
+not let anyone else spend it. Wallets with a permission layer may ask the user
+to approve revealing a key linkage.
+
+If the wallet has no `revealSpecificKeyLinkage`, refuses it, or returns a
+linkage that does not derive the key the output pays, `tip()` throws
+`Brc29LinkageError` (`reason`: `unsupported`, `refused` or `invalid`) before
+anything is signed, rather than build a tip readers would not count. Readers
+also need the identity key tied to the post's signer: the post is signed with
+the identity key itself, or the author has published a key binding for the
+signing key.
+
+The parts stay available for callers that compose by hand: `brc29Output()`,
+`brc29Linkage()`, and `payment({ ..., linkage })`. A record built without a
+linkage is valid but is not counted as a tip.
 
 `identityProfile()` writes a peck-identity-v1 profile: a MAP `type profile`
 record that the identity key signs itself (BRC-3, protocol `[1, 'profile']`,

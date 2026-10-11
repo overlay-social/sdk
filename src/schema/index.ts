@@ -64,13 +64,21 @@ export {
   type TargetInput,
 } from './builders.js'
 export {
+  BRC29_LINKAGE_VERIFIER,
   BRC29_PROTOCOL,
+  Brc29LinkageError,
+  brc29Linkage,
   brc29Output,
+  brc29PayeeScript,
+  type Brc29LinkageErrorReason,
+  type Brc29LinkageInput,
+  type Brc29LinkageWallet,
   type Brc29Output,
   type Brc29OutputInput,
   type Brc29Remittance,
   type Brc29Wallet,
 } from './brc29.js'
+export { tip, type Tip, type TipActionOutput, type TipInput, type TipOptions, type TipWallet } from './tip.js'
 export {
   IDENTITY_PROFILE_APP,
   IDENTITY_PROFILE_PROTOCOL,

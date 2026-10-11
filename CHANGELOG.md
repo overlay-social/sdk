@@ -6,6 +6,15 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 ## Unreleased
 
 ### Added
+- `tip()` in `@overlay-social/sdk/schema`: a whole tip in one call (BRC-29
+  payment output, signed `payment()` record, remittance) that publishes the
+  output's key linkage as MAP `linkage`, so readers can prove the tip reached
+  the author and count it. Throws `Brc29LinkageError` (`unsupported`,
+  `refused`, `invalid`) instead of building a tip that would not be counted.
+- `brc29Linkage()` (one `revealSpecificKeyLinkage` call to the public
+  verifier `BRC29_LINKAGE_VERIFIER`), `brc29PayeeScript()` (the readers'
+  check: P2PKH to `identity key + L·G`), and an optional `linkage` field on
+  `payment()`, written after `value`. Records without it are unchanged.
 - Subpath export `@overlay-social/sdk/read`: the existing read client on its
   own entry point. The package root re-exports it unchanged, so existing
   imports keep working.
