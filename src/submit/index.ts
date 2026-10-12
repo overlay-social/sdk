@@ -18,4 +18,11 @@ export {
   type TopicAdmittance,
   type TransactionLike,
 } from './submit.js'
+export {
+  DEFAULT_KEY_BINDING_TIMEOUT_MS,
+  hasKeyBinding,
+  signingKeys,
+  type BoundSigningKey,
+  type KeyBindingLookupOptions,
+} from './key-binding.js'
 export { OverlaySubmitError, isOverlaySubmitError, type OverlaySubmitErrorCode } from './errors.js'

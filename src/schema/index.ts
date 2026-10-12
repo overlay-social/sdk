@@ -93,6 +93,23 @@ export {
   type IdentityProfileWallet,
 } from './identity-profile.js'
 export {
+  KEY_BINDING_APP,
+  KEY_BINDING_NO_REVOCATION,
+  KEY_BINDING_OUTPUT_DESCRIPTION,
+  KEY_BINDING_PROTOCOL,
+  KEY_BINDING_PURPOSE,
+  KEY_BINDING_SCHEMA_VERSION,
+  keyBinding,
+  keyBindingPreimage,
+  verifyKeyBinding,
+  type KeyBinding,
+  type KeyBindingCheck,
+  type KeyBindingInput,
+  type KeyBindingOptions,
+  type KeyBindingSubjectKey,
+  type KeyBindingWallet,
+} from './key-binding.js'
+export {
   FRIEND_APP,
   FRIEND_PROTOCOL,
   FRIEND_SCHEMA_VERSION,

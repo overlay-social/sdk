@@ -484,6 +484,44 @@ await submitToOverlay(action, { topics: [OVERLAY_TOPICS.identityProfile] }) // s
 verifyIdentityProfile(toLockingScript(p)) // { identity, fields, valid: true }
 ```
 
+### Key bindings
+
+Posts are AIP-signed by the login key (`[1, 'identity']`, key ID `'1'`,
+counterparty `self`), a key derived from the identity key. `keyBinding()`
+writes the peck-identity-v1 record that ties that signing key to the identity:
+a MAP `type keybinding` record with two signatures over one canonical preimage,
+`sig` by the identity key (BRC-3, protocol `[1, 'keybinding']`, a random serial
+as key ID, counterparty `anyone`) and `subjectsig` by the signing key itself.
+The overlay (`tm_key-binding`) admits it only when both verify, and then
+resolves the signing address to the identity; author resolution and tip
+attribution depend on that. The bytes are the ones the peck.to v1 client
+writes on `/welcome`.
+
+A binding is needed once per signing key. `hasKeyBinding()` asks the overlay
+(`GET /identity/<identity key>/signing-keys`) and rejects when it cannot say,
+so "not bound" and "unknown" stay apart. The binding output can ride in the
+same transaction as the post it is for:
+
+```ts
+import { keyBinding, post, signPayload, toLockingScript, verifyKeyBinding, KEY_BINDING_OUTPUT_DESCRIPTION } from '@overlay-social/sdk/schema'
+import { OVERLAY_TOPICS, hasKeyBinding, submitToOverlay } from '@overlay-social/sdk/submit'
+
+const outputs = [{ lockingScript: (await signPayload(post({ app, text }), { wallet })).toHex(), satoshis: 0, outputDescription: 'post' }]
+const topics = [OVERLAY_TOPICS.content]
+if (!(await hasKeyBinding(identityKey, loginKey))) {
+  const binding = await keyBinding({}, { wallet }) // two signature requests
+  outputs.push({ lockingScript: toLockingScript(binding).toHex(), satoshis: 0, outputDescription: KEY_BINDING_OUTPUT_DESCRIPTION })
+  topics.push(OVERLAY_TOPICS.keyBinding)
+}
+const action = await wallet.createAction({ description: 'Post', outputs })
+await submitToOverlay(action, { topics })
+verifyKeyBinding(outputs[1].lockingScript) // { subject, certifier, signingAddress, fields, valid: true }
+```
+
+The builder checks both signatures the way the overlay does before it returns,
+so a wallet that signs with other keys than it reported fails there. The default
+`revocation` is the null outpoint, as v1 writes it: the binding is permanent.
+
 ### Friends
 
 Friendship is mutual consent, written as two one-way records. `friend({ peer })`
@@ -698,7 +736,7 @@ transaction up from the chain later.
 | `identityProfile()` | `tm_identity-profile` | `OVERLAY_TOPICS.identityProfile` |
 | `friend()`, `unfriend()` | `tm_social-friend` | `OVERLAY_TOPICS.friend` |
 | an identity handle claim | `tm_identity-handle` | `OVERLAY_TOPICS.identityHandle` |
-| a key binding | `tm_key-binding` | `OVERLAY_TOPICS.keyBinding` |
+| `keyBinding()` | `tm_key-binding` | `OVERLAY_TOPICS.keyBinding` |
 
 `peck-schema` is the old name of the same topic manager as
 `tm_social-content` (`OVERLAY_TOPICS.contentLegacy`). One transaction can go to
