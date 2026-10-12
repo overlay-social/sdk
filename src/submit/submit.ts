@@ -46,7 +46,7 @@ export const OVERLAY_TOPICS = {
   identityProfile: 'tm_identity-profile',
   /** An identity handle claim. */
   identityHandle: 'tm_identity-handle',
-  /** A key binding (links a signing key to an identity key). */
+  /** A key binding (links a signing key to an identity key), written by `keyBinding()`. */
   keyBinding: 'tm_key-binding',
   /** A friend request or a withdrawal. */
   friend: 'tm_social-friend',

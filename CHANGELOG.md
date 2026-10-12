@@ -6,6 +6,15 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 ## Unreleased
 
 ### Added
+- `keyBinding()` in `@overlay-social/sdk/schema`: the peck-identity-v1 key
+  binding (MAP `type keybinding`, `sig` by the identity key and `subjectsig` by
+  the signing key) that the overlay topic `tm_key-binding` admits, byte for
+  byte as the peck.to v1 `/welcome` flow writes it (golden test against v1's
+  own code). Also `verifyKeyBinding()` (the overlay's admission rule),
+  `keyBindingPreimage()` and the `KEY_BINDING_*` constants.
+- `hasKeyBinding()` and `signingKeys()` in `@overlay-social/sdk/submit`: whether
+  a signing key is bound to an identity yet, from the overlay's
+  `GET /identity/<key>/signing-keys`.
 - `tip()` in `@overlay-social/sdk/schema`: a whole tip in one call (BRC-29
   payment output, signed `payment()` record, remittance) that publishes the
   output's key linkage as MAP `linkage`, so readers can prove the tip reached
