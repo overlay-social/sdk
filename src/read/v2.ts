@@ -5,7 +5,8 @@
  * media, one level of referenced post, a parent stub), so a screen needs one
  * call instead of a feed request plus enrichment. Every view is
  * viewer-independent and cacheable by URL; the per-viewer reads are
- * `viewerState()` and `notifications()`, which the overlay never caches.
+ * `viewerState()`, `notifications()` and `payments()`, which the overlay never
+ * caches (payments: `private, no-cache` with an ETag, so a browser revalidates).
  *
  * Error model (unlike the /v1 client, nothing here is best-effort):
  *  - A non-2xx response throws a `ReadError` whose `code` is the contract's
@@ -28,6 +29,8 @@ import type {
   MessagePage,
   NotificationView,
   NotificationPage,
+  PaymentPage,
+  PaymentView,
   PostBatch,
   ProfileView,
   Reaction,
@@ -326,6 +329,30 @@ export interface NotificationsQuery {
   cursor?: FeedCursor | null
 }
 
+/** Which way a payment went, seen from the viewer (`PaymentView['direction']`). */
+export type PaymentDirection = PaymentView['direction']
+
+/** Query for `payments()`. */
+export interface PaymentsQuery {
+  /**
+   * The person: an identity key, a P2PKH address, a compressed public key or a
+   * handle. Every key that signs for them counts; the page's `keys` lists them.
+   */
+  viewer: string
+  /** `in` (tips on their posts), `out` (tips they sent) or `all`. Overlay default: `all`. */
+  direction?: PaymentDirection | 'all'
+  /**
+   * `only`: payments whose proof method is recorded (`verifiedBy` set). `any`:
+   * also older payments recorded before the method was kept (`verifiedBy`
+   * null). Overlay default: `only`.
+   */
+  verified?: 'only' | 'any'
+  /** 1–100. Overlay default: 50. */
+  limit?: number
+  /** Continue after a previous page: pass that page's `next` unchanged, with the same viewer, direction and verified. */
+  cursor?: FeedCursor | null
+}
+
 /** Per-call options. */
 export interface ReadRequestOptions {
   /** Aborts the request (and every chunk of a chunked call). */
@@ -498,6 +525,19 @@ export function notificationsSearchParams(query: NotificationsQuery): URLSearchP
   return qs
 }
 
+/** The query string for `GET /v2/payments`. */
+export function paymentsSearchParams(query: PaymentsQuery): URLSearchParams {
+  const qs = toSearchParams({
+    viewer: query.viewer.trim(),
+    direction: query.direction,
+    verified: query.verified,
+    limit: limitParam(query.limit),
+  })
+  // before_ts + before_txid, sent back as given.
+  for (const [k, v] of Object.entries(query.cursor ?? {})) qs.set(k, String(v))
+  return qs
+}
+
 function toSearchParams(p: Params): URLSearchParams {
   const qs = new URLSearchParams()
   for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '') qs.set(k, v)
@@ -536,6 +576,8 @@ const isAuthorList = (b: unknown): b is AuthorList =>
   isObject(b) && Array.isArray(b.items) && typeof b.total === 'number' && typeof b.capped === 'boolean'
 const isNotificationPage = (b: unknown): b is NotificationPage =>
   isObject(b) && Array.isArray(b.items) && Array.isArray(b.keys) && typeof b.capped === 'boolean' && (b.next === null || isObject(b.next))
+const isPaymentPage = (b: unknown): b is PaymentPage =>
+  isObject(b) && Array.isArray(b.items) && Array.isArray(b.keys) && typeof b.direction === 'string' && (b.next === null || isObject(b.next))
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -791,6 +833,25 @@ export class ReadClient {
     const viewer = typeof query?.viewer === 'string' ? query.viewer.trim() : ''
     if (!viewer) return Promise.reject(new ReadError('bad_request', 0, '/v2/notifications', 'viewer is required'))
     return this.request('GET', `/v2/notifications?${notificationsSearchParams({ ...query, viewer }).toString()}`, undefined, isNotificationPage, opts)
+  }
+
+  /**
+   * `GET /v2/payments`: one person's tips, in (on their posts) and out (that
+   * they sent), newest first, a page at a time. Only payments that name a post
+   * are known, so unlocks and plain transfers are not listed. `amount` is what
+   * the chain shows reached the post's author, never the sender's claim;
+   * `verifiedBy` says how it was proven (null only with `verified: 'any'`, for
+   * payments recorded before the method was kept). Built from public chain
+   * records, so no session is needed. The overlay reads a precomputed index
+   * (`asOf` says when it was last brought up to date, about a minute behind),
+   * so merge your own recent sends locally. Page on with
+   * `query.cursor = page.next`. A query without a viewer is rejected here
+   * without a request.
+   */
+  payments(query: PaymentsQuery, opts?: ReadRequestOptions): Promise<PaymentPage> {
+    const viewer = typeof query?.viewer === 'string' ? query.viewer.trim() : ''
+    if (!viewer) return Promise.reject(new ReadError('bad_request', 0, '/v2/payments', 'viewer is required'))
+    return this.request('GET', `/v2/payments?${paymentsSearchParams({ ...query, viewer }).toString()}`, undefined, isPaymentPage, opts)
   }
 
   /**

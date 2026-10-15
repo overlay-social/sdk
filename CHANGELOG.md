@@ -6,6 +6,18 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 ## Unreleased
 
 ### Added
+- `/v2` client: `payments(query)` reads `GET /v2/payments` (`PaymentPage`):
+  one person's tips in and out (`viewer`: an identity key, an address, a
+  public key or a handle), newest first, with an exact `next` cursor
+  (`before_ts` + `before_txid`), `direction` (`in`, `out`, `all`) and
+  `verified` (`only`, the overlay default, or `any` to include payments
+  recorded before the proof method was kept, with `verifiedBy: null`). A query
+  without a viewer is rejected before a request is made. New exports:
+  `PaymentsQuery`, `PaymentDirection`, `paymentsSearchParams`; the view types
+  `PaymentPage` and `PaymentView`.
+- `ProfileView.apps` (`ProfileAppCount[]`): the apps a person posts from, top
+  ten by post count. The same contract sync brings in `BlockSummary`,
+  `NotificationPost.app` / `.channel` and the contract's new examples.
 - `keyBinding()` in `@overlay-social/sdk/schema`: the peck-identity-v1 key
   binding (MAP `type keybinding`, `sig` by the identity key and `subjectsig` by
   the signing key) that the overlay topic `tm_key-binding` admits, byte for

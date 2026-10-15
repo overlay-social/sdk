@@ -13,6 +13,7 @@ import {
   lensesSearchParams,
   messagesSearchParams,
   notificationsSearchParams,
+  paymentsSearchParams,
   reactionsSearchParams,
   type FeedPage,
   type PostView,
@@ -388,6 +389,41 @@ describe('notifications()', () => {
     await expect(bad.client.notifications({ viewer: 'ada' })).rejects.toMatchObject({ code: 'bad_request', status: 400 })
     const odd = clientWith(() => json({ items: [], next: null }))
     await expect(odd.client.notifications({ viewer: '02ab' })).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+})
+
+describe('payments()', () => {
+  const EMPTY_PAYMENTS = { viewer: '02ab', keys: ['02ab'], direction: 'all', verified: 'only', items: [], next: null, asOf: null }
+
+  it('maps the typed query onto the /v2/payments wire names', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_PAYMENTS))
+    await client.payments({ viewer: ' 02ab ', direction: 'in', verified: 'any', limit: 20, cursor: { before_ts: '2026-09-30T09:10:58Z', before_txid: 'd1'.repeat(32) } })
+    const u = calls[0]!.url
+    expect(u.origin + u.pathname).toBe('https://overlay.example/v2/payments')
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      viewer: '02ab', direction: 'in', verified: 'any', limit: '20', before_ts: '2026-09-30T09:10:58Z', before_txid: 'd1'.repeat(32),
+    })
+    expect(calls[0]!.method).toBe('GET')
+  })
+
+  it('leaves unset fields out', () => {
+    expect(paymentsSearchParams({ viewer: '@ada' }).toString()).toBe('viewer=%40ada')
+    expect(paymentsSearchParams({ viewer: '1abc', cursor: null }).toString()).toBe('viewer=1abc')
+  })
+
+  it('rejects a query without a viewer before any request', async () => {
+    const { client, calls } = clientWith(() => json(EMPTY_PAYMENTS))
+    for (const viewer of ['', '  ']) {
+      await expect(client.payments({ viewer })).rejects.toMatchObject({ code: 'bad_request', status: 0 })
+    }
+    expect(calls).toHaveLength(0)
+  })
+
+  it('a 400 from the overlay is a bad_request ReadError; a body that is not a PaymentPage is invalid_response', async () => {
+    const bad = clientWith(() => json({ error: { code: 'bad_request', message: 'direction must be in, out or all' } }, 400))
+    await expect(bad.client.payments({ viewer: '02ab' })).rejects.toMatchObject({ code: 'bad_request', status: 400 })
+    const odd = clientWith(() => json({ viewer: '02ab', keys: ['02ab'], items: [], next: null, capped: false }))
+    await expect(odd.client.payments({ viewer: '02ab' })).rejects.toMatchObject({ code: 'invalid_response' })
   })
 })
 

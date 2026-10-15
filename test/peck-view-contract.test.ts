@@ -15,6 +15,7 @@ import {
   type LensList,
   type MessagePage,
   type NotificationPage,
+  type PaymentPage,
   type PostBatch,
   type ProfileView,
   type ReactionPage,
@@ -28,6 +29,7 @@ const EXAMPLE_TYPES: Record<string, PeckViewTypeName> = {
   'app-list.json': 'AppList',
   'author-list-names.json': 'AuthorList',
   'author-list.json': 'AuthorList',
+  'block-summary.json': 'BlockSummary',
   'channel-list.json': 'ChannelList',
   'error-response.json': 'ErrorResponse',
   'feed-page-last.json': 'FeedPage',
@@ -37,7 +39,9 @@ const EXAMPLE_TYPES: Record<string, PeckViewTypeName> = {
   'message-page-direct.json': 'MessagePage',
   'message-page.json': 'MessagePage',
   'notification-page.json': 'NotificationPage',
+  'payment-page.json': 'PaymentPage',
   'post-batch-geo.json': 'PostBatch',
+  'post-batch-legacy-media.json': 'PostBatch',
   'post-batch.json': 'PostBatch',
   'profile-view.json': 'ProfileView',
   'reaction-page.json': 'ReactionPage',
@@ -258,6 +262,41 @@ describe('the /v2 client returns each example typed', () => {
     const u = new URL(older.calls[0]!.url)
     expect(u.searchParams.get('kinds')).toBe('reply,like')
     expect(u.searchParams.get('before_id')).toBe(reply.id)
+  })
+
+  it('payments() -> PaymentPage: both directions, proven amounts, the cursor back unchanged', async () => {
+    const example = load('payment-page.json') as PaymentPage
+    const { client, calls } = serving(example)
+    const page = await client.payments({ viewer: example.viewer, verified: 'any', limit: 5 })
+    expect(page).toEqual(example)
+    expect(calls[0]?.url).toBe(`https://overlay.example/v2/payments?viewer=${example.viewer}&verified=any&limit=5`)
+    expect(new Set(page.items.map((p) => p.direction))).toEqual(new Set(['in', 'out']))
+    for (const p of page.items) {
+      expect(p.amount).toBeGreaterThan(0)
+      expect(p.contextTxid).toMatch(/^[0-9a-f]{64}$/)
+      if (p.post) expect(p.post.txid).toBe(p.contextTxid)
+    }
+    expect(page.keys).toContain(example.viewer)
+    if (page.next) {
+      const last = page.items[page.items.length - 1]!
+      expect(page.next).toEqual({ before_ts: last.at, before_txid: last.txid })
+      const older = serving(example)
+      await older.client.payments({ viewer: example.viewer, direction: 'out', cursor: page.next })
+      const u = new URL(older.calls[0]!.url)
+      expect(u.searchParams.get('direction')).toBe('out')
+      expect(u.searchParams.get('before_txid')).toBe(last.txid)
+    }
+  })
+
+  it('profile() -> ProfileView carries the per-app post counts', async () => {
+    const example = load('profile-view.json') as ProfileView
+    expect(Array.isArray(example.apps)).toBe(true)
+    const { client } = serving(example)
+    const profile = await client.profile(example.author.key)
+    for (const a of profile.apps ?? []) {
+      expect(typeof a.app).toBe('string')
+      expect(a.posts).toBeGreaterThan(0)
+    }
   })
 
   it('authors() -> AuthorList, a shared custodial key included', async () => {

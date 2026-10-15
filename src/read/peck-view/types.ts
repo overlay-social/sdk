@@ -5,7 +5,7 @@
  * (src/read/peck-view/peck-view.schema.json). Do not edit by hand: re-run
  * `npm run sync:peck-view -- <path to the contract schema>`.
  *
- * Contract source sha256: af97b2574a086282b4adeaca2ccaf5348acbbf5b5b5275338bc677b7e5ddba03
+ * Contract source sha256: ef955215fda7f4da69d4007e66ca06dd501353546f1ad33eafd3a177bb9f091d
  */
 
 /**
@@ -20,6 +20,7 @@ export type PeckView =
   | AppList
   | ReactionPage
   | SiteStats
+  | BlockSummary
   | ChannelList
   | MessagePage
   | IdentityList
@@ -27,6 +28,7 @@ export type PeckView =
   | LensList
   | NotificationPage
   | ErrorResponse
+  | PaymentPage
 /**
  * A BRC-100 identity key: a 66-hex compressed secp256k1 public key, lowercase.
  */
@@ -87,7 +89,7 @@ export interface PostView {
    */
   blockHeight: number | null
   /**
-   * The text body: MAP content, falling back to the B content. Null when the body is binary media (see `media`) or empty. Untrusted user input: sanitize before rendering it as markup.
+   * The text body: MAP content, falling back to the B content. Media written into the text as base64 data URIs (markdown images, html media tags or bare URIs) and markdown images of `b://` files are not text: they are removed here and listed in `media`, so a cut never leaves half a file. Null when the body is binary media (see `media`), empty, or nothing but such media. Untrusted user input: sanitize before rendering it as markup.
    */
   text: string | null
   /**
@@ -99,11 +101,11 @@ export interface PostView {
    */
   textTruncated: boolean
   /**
-   * Length of the full text in characters (Unicode code points), before truncation. 0 when `text` is null.
+   * Length of the full text in characters (Unicode code points), before truncation, not counting media removed from it (see `text`). 0 when `text` is null.
    */
   textLength: number
   /**
-   * Media carried by the transaction: the B body when its media type is image/*, audio/* or video/*, followed by every extra output the index holds for the transaction, in vout order, whatever its type. Empty when there is none.
+   * Media carried by the transaction, in this order: the B body when its media type is image/*, audio/* or video/*, or when the body is binary and its type is known (pdf, gzip, glTF, html, encrypted, …); then media lifted out of the text (base64 data URIs as /v2/inline URLs, `![alt](b://<txid>)` as /b/ URLs), in text order; then every extra output the index holds for the transaction, in vout order, whatever its type. Empty when there is none.
    */
   media: MediaItem[]
   /**
@@ -257,15 +259,15 @@ export interface SourceHandle {
  */
 export interface MediaItem {
   /**
-   * Fetchable URL: <media base>/b/<txid> for the B-protocol body, <media base>/b/<txid>?vout=<vout> for an extra output. The media base defaults to https://peck.to, whose /b/ proxy serves only sniffed raster/audio/video types from the chain.
+   * Fetchable URL: <media base>/b/<txid> for the B-protocol body (or for the on-chain file a `![alt](b://<txid>)` in the text points at), <media base>/b/<txid>?vout=<vout> for an extra output, <overlay>/v2/inline/<txid>/<n> for the n-th base64 data URI a legacy app wrote into the post's text (served by the overlay itself, e.g. https://overlay.peck.to: decoded, only png/jpeg/gif/webp/mp3/mp4 whose bytes match, immutable, nosniff). The media base defaults to https://peck.to, whose /b/ proxy serves raster images, audio, video and text inline, sends html/svg to a separate gateway origin, and offers anything else as a download.
    */
   url: string
   /**
-   * Declared media type (image/jpeg, video/mp4, …) as written on-chain. Clients must not trust it for security decisions.
+   * Declared media type (image/jpeg, video/mp4, application/pdf, …) as written on-chain, or as the data URI declares it. For a binary body whose row declares no usable type (twetch `undefined`), the type its first bytes show. Null when unknown (a `b://` reference). An encrypted body says so here (`application/bitcoin-ecies; content-type=…`). Clients must not trust it for security decisions.
    */
   mediaType: string | null
   /**
-   * Declared filename, if any.
+   * Declared filename, if any; for media lifted out of the text, the markdown alt text. Never a protocol prefix or `|` (a B output with fewer fields, read past its pipe).
    */
   filename: string | null
   /**
@@ -276,6 +278,10 @@ export interface MediaItem {
    * Size in bytes when the index knows it; null otherwise.
    */
   sizeBytes: number | null
+  /**
+   * Present (true) when the item is a live document: html or svg the overlay serves itself (<overlay>/content/<txid>, <overlay>/content/<txid>_<vout>, <overlay>/v2/inline/<txid>/<n>) under `Content-Security-Policy: sandbox allow-scripts; …` (opaque origin: no cookies, no storage, no origin a postMessage listener trusts; loads only from the overlay, data: and blob:). Render svg with <img> (scripts never run there). Run html only on request, in <iframe sandbox="allow-scripts"> without allow-same-origin, allow-top-navigation, allow-popups or allow-forms, never inline in the page. Absent for every other item.
+   */
+  sandboxed?: true
 }
 /**
  * Where a post was placed, as the author wrote it on chain (MAP lat, lng and optionally category). The coordinates are WGS84 degrees.
@@ -478,6 +484,10 @@ export interface ProfileView {
    * Verified certificates of the identity, one entry per platform and value, ordered by platform then value. Empty when the profile has no identity key or none verify. Optional within v1: absent from overlays that predate it, and from an answer that could not verify them in time (such an answer is not cacheable).
    */
   certificates?: IdentityCertificate[]
+  /**
+   * The apps the profile posts from, most posts first (ties by app name), at most 10: posts, replies and reposts per app over every key of the profile. Counted periodically, so it can be up to about ten minutes behind counts.posts, which is live and counts every type. Optional within v1: absent from overlays that predate it, and for a few seconds after the overlay starts.
+   */
+  apps?: ProfileAppCount[]
 }
 /**
  * Social graph counts for a profile.
@@ -520,6 +530,19 @@ export interface IdentityCertificate {
    * @minItems 1
    */
   certificateHashes: [string, ...string[]]
+}
+/**
+ * How many posts a profile wrote from one app.
+ */
+export interface ProfileAppCount {
+  /**
+   * The MAP app name as indexed (peck.to, peck.world, twetch, ...), exactly the value GET /v2/feed?app= filters on.
+   */
+  app: string
+  /**
+   * Posts, replies and reposts signed by any of the profile's keys from this app.
+   */
+  posts: number
 }
 /**
  * Response of POST /v2/posts: many posts by txid in one call.
@@ -677,6 +700,65 @@ export interface SiteStats {
    * When the estimates were read, ISO 8601 in UTC with a trailing Z.
    */
   asOf: string
+}
+/**
+ * Response of GET /v2/block/{height}: what the social layer did in one Bitcoin block. Covers exactly the posts GET /v2/feed?block={height} serves (same operator filtering), counted live. A block with no indexed posts, or a height beyond the chain tip, is a valid answer with zeros and empty lists, not an error: posts of a recent block keep arriving while the indexer catches up, so the numbers can grow for a while after the block is mined.
+ */
+export interface BlockSummary {
+  /**
+   * The block height asked for.
+   */
+  height: number
+  /**
+   * Posts, replies and reposts mined in this block.
+   */
+  posts: number
+  /**
+   * Distinct authors. Posts from a custodial relay key (one key that posts for many people) count once per display name, not once per key.
+   */
+  authors: number
+  /**
+   * Posts per app, most posts first, ties by app name.
+   */
+  apps: BlockAppCount[]
+  /**
+   * Posts per type, most posts first, ties by type name.
+   */
+  types: BlockTypeCount[]
+  /**
+   * Satoshis tipped to this block's posts, whenever the tips were paid (a tip to a post of this block counts even if the tip itself was mined later).
+   */
+  tipSats: number
+  /**
+   * Satoshis time-locked on this block's posts (the sum of PostView.counts.lockedSats over them).
+   */
+  lockedSats: number
+}
+/**
+ * How many of one block's posts one MAP app wrote.
+ */
+export interface BlockAppCount {
+  /**
+   * The MAP app name as indexed, exactly the value GET /v2/feed?app= filters on. Posts indexed without an app are counted under "unknown".
+   */
+  app: string
+  /**
+   * How many of the block's posts this app accounts for.
+   */
+  count: number
+}
+/**
+ * How many of one block's posts are of one type.
+ */
+export interface BlockTypeCount {
+  /**
+   * The post type: post, reply or repost (open set: render an unknown type generically). Rows indexed without a type are counted as post.
+   */
+  type: string
+  /**
+   * How many of the block's posts this type accounts for.
+   */
+  count: number
 }
 /**
  * The channels people write in (GET /v2/channels), for a channel picker or a sidebar. Two lists, because the two kinds of activity differ: `posting` ranks channels by the posts written in them recently, `rooms` ranks chat rooms by their latest message. A name can be in both. Nothing here depends on the viewer, and counts are as old as `asOf`. The legacy room `global` is the global chat itself, not a room, and is never listed.
@@ -978,7 +1060,7 @@ export interface NotificationView {
   emoji: string | null
 }
 /**
- * Just enough of a post to say which one a notification is about: its id, type and the start of its text. Open the post with GET /v2/post/{txid} for the rest.
+ * Just enough of a post to say which one a notification or a payment is about: its id, type, app, channel and the start of its text. Open the post with GET /v2/post/{txid} for the rest.
  */
 export interface NotificationPost {
   txid: Txid
@@ -987,7 +1069,7 @@ export interface NotificationPost {
    */
   type: string
   /**
-   * The start of the text body (MAP content, falling back to the B content), at most 280 characters (Unicode code points). Null when the body is binary media or empty. Untrusted user input: render it as text, or sanitize it before rendering it as markup.
+   * The start of the text body (MAP content, falling back to the B content), at most 280 characters (Unicode code points), without media written into the text (see PostView.text). Null when the body is binary media or empty. Untrusted user input: render it as text, or sanitize it before rendering it as markup.
    */
   text: string | null
   /**
@@ -1002,6 +1084,14 @@ export interface NotificationPost {
    * B-protocol media type of the body as written on-chain (text/plain, text/markdown, image/jpeg, ...). Null when unset.
    */
   mediaType: string | null
+  /**
+   * The MAP app that wrote the post (peck.to, twetch, ...), as PostView.app. Null when unset. Optional within v1: absent from overlays that predate it.
+   */
+  app?: string | null
+  /**
+   * The post's own MAP channel, as PostView.channel. Null when it has none. Optional within v1: absent from overlays that predate it.
+   */
+  channel?: string | null
 }
 /**
  * Body of every non-2xx /v2 response.
@@ -1009,7 +1099,7 @@ export interface NotificationPost {
 export interface ErrorResponse {
   error: {
     /**
-     * Stable machine-readable code: bad_request, not_found, timeout (a search lane gave up; retry later) or internal.
+     * Stable machine-readable code: bad_request, not_found, timeout (a search lane gave up; retry later) or internal; GET /v2/inline also answers paywalled (403), too_large (413) and unsupported_media_type (415).
      */
     code: string
     /**
@@ -1017,4 +1107,75 @@ export interface ErrorResponse {
      */
     message: string
   }
+}
+/**
+ * Response of GET /v2/payments?viewer=<identity key|address|handle|account name>: one person's tips in and out, newest first, a page at a time (limit 1-100, default 50; direction=in|out|all, default all; verified=only|any, default only). Built from public on-chain records looked up by the viewer's keys (the same set NotificationPage.keys lists), so no session is needed; it depends on the viewer, so it is private to the reader's cache and revalidated on every read (Cache-Control: private, no-cache, with an ETag). There is no total.
+ */
+export interface PaymentPage {
+  /**
+   * The viewer the page was computed for, as given.
+   */
+  viewer: string
+  /**
+   * Every key treated as the viewer: the resolved key, its address, its identity key, the identity's bound signing keys and their addresses, and a legacy account's address. Shared custodial keys are never among them.
+   */
+  keys: Key[]
+  /**
+   * Which payments were asked for.
+   */
+  direction: 'in' | 'out' | 'all'
+  /**
+   * only: payments whose proof method is recorded (verifiedBy set). any: also the payments recorded before the method was kept (verifiedBy null).
+   */
+  verified: 'only' | 'any'
+  /**
+   * The payments on this page, newest first.
+   */
+  items: PaymentView[]
+  /**
+   * Cursor for the next (older) page, in the same structured form as FeedPage.next: before_ts with before_txid. Send it back unchanged with the same viewer, direction and verified. Null exactly when there is nothing older.
+   */
+  next: FeedCursor | null
+  /**
+   * When the precomputed payment index this page was read from was last brought up to date: a payment indexed after it shows up on the next refresh (about a minute). Null when the page was computed live.
+   */
+  asOf: string | null
+}
+/**
+ * One payment the chain shows reached the author of a post: a tip on one of the viewer's posts (in) or by the viewer (out). Only payments that name a post are known, so unlocks and plain transfers are not listed. A payment between two of the viewer's own keys is never listed.
+ */
+export interface PaymentView {
+  txid: Txid
+  /**
+   * in: someone else paid the author of one of the viewer's posts. out: the viewer paid the author of someone else's post (or of a post that is not indexed).
+   */
+  direction: 'in' | 'out'
+  /**
+   * Satoshis the chain shows reached the post's author: never the amount the sender claimed in the record. For Twetch payments, the author's 80% share.
+   */
+  amount: number
+  /**
+   * When the payment was indexed, ISO 8601 in UTC with a trailing Z. Payments are ordered by this time, newest first, ties by txid.
+   */
+  at: string
+  /**
+   * How the amount was proven. p2pkh-author: P2PKH outputs pay the author's address. brc29-linkage: a BRC-29 output pays a key derived from the author's identity key, and the record publishes the derivation linkage. twetch-split: Twetch's fixed 80/20 author/fee split. Null for payments recorded before the method was kept (before 2026-10-09; credited by the same chain rules); listed only with verified=any. Open set: show an unknown value as verified.
+   */
+  verifiedBy: string | null
+  /**
+   * The other side as the chain carries it: the sender's address for in, the post author's key for out. Null for an outgoing payment whose post is not indexed (its author is unknown).
+   */
+  counterpartyKey: Key | null
+  /**
+   * counterpartyKey baked exactly like a post author (identity, handle, name, picture when the key resolves to one; else a generated name and avatar for the raw key). Null when counterpartyKey is null.
+   */
+  counterparty: AuthorView | null
+  /**
+   * The post the payment was for, as the payment record names it.
+   */
+  contextTxid: string
+  /**
+   * A preview of that post (type, app, channel, the start of its text). Null when the post is not indexed.
+   */
+  post: NotificationPost | null
 }

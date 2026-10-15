@@ -1,0 +1,98 @@
+{
+  "viewer": "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+  "keys": [
+    "02ed41e68a8f0b36811aa61c6857bb1765fb0993172ff6ea5ee94e01fb0644a3d1",
+    "1FC9jmEWP67k2A1rYG9A1pLB4L5EibuhA1"
+  ],
+  "direction": "all",
+  "verified": "any",
+  "asOf": "2026-09-30T10:00:00Z",
+  "items": [
+    {
+      "txid": "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+      "direction": "out",
+      "amount": 50,
+      "at": "2026-09-30T09:50:00Z",
+      "verifiedBy": "p2pkh-author",
+      "counterpartyKey": null,
+      "counterparty": null,
+      "contextTxid": "9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f",
+      "post": null
+    },
+    {
+      "txid": "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+      "direction": "out",
+      "amount": 300,
+      "at": "2026-09-30T09:40:00Z",
+      "verifiedBy": "twetch-split",
+      "counterpartyKey": "1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi",
+      "counterparty": {
+        "key": "1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi",
+        "address": "1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi",
+        "identityKey": null,
+        "handle": null,
+        "displayName": "satoshifan",
+        "nameSource": "external",
+        "avatarUrl": "https://peck.to/xavatar/b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+        "avatarRef": "b://b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+        "avatarSource": "external",
+        "generatedAvatarUrl": "https://peck.to/avatar/1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi?seed=1Gm7y24egYaPegB6kwCz66BL6iN1g8xfVi",
+        "paymail": null,
+        "custodialRelay": null,
+        "external": {
+          "source": "twetch",
+          "externalId": "910"
+        }
+      },
+      "contextTxid": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+      "post": {
+        "txid": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+        "type": "post",
+        "text": null,
+        "textLength": 0,
+        "textTruncated": false,
+        "mediaType": "image/jpeg",
+        "app": "twetch",
+        "channel": null
+      }
+    },
+    {
+      "txid": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+      "direction": "in",
+      "amount": 2500,
+      "at": "2026-09-30T09:20:00Z",
+      "verifiedBy": "p2pkh-author",
+      "counterpartyKey": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+      "counterparty": {
+        "key": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "address": "1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "identityKey": "02076de817d475129600db21528e40b0d8b1829972a45ccd0d71f490fc726017a7",
+        "handle": null,
+        "displayName": "Old Timer",
+        "nameSource": "account",
+        "avatarUrl": null,
+        "avatarRef": null,
+        "avatarSource": null,
+        "generatedAvatarUrl": "https://peck.to/avatar/1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ?seed=1r1rNkWTSWHBYZYBSzjLmHjxybff3PfzZ",
+        "paymail": "oldtimer@peck.to",
+        "custodialRelay": null,
+        "external": null
+      },
+      "contextTxid": "2222222222222222222222222222222222222222222222222222222222222222",
+      "post": {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "type": "reply",
+        "text": "A **read model** for peck.",
+        "textLength": 26,
+        "textTruncated": false,
+        "mediaType": "text/markdown",
+        "app": "peck.to",
+        "channel": "bsv"
+      }
+    }
+  ],
+  "next": {
+    "before_ts": "2026-09-30T09:20:00Z",
+    "before_txid": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"
+  }
+}
