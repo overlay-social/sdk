@@ -48,5 +48,19 @@
         "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
       ]
     }
+  ],
+  "apps": [
+    {
+      "app": "peck.to",
+      "posts": 26
+    },
+    {
+      "app": "peck.ink",
+      "posts": 12
+    },
+    {
+      "app": "peck.world",
+      "posts": 4
+    }
   ]
 }

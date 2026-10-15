@@ -186,4 +186,14 @@ describe.skipIf(!live)('live /v2 smoke test', () => {
     expect(peckViewErrors('NotificationPage', notes)).toEqual([])
     expect(notes.keys.length).toBeGreaterThan(0)
   }, 30_000)
+
+  it('payments agree with the contract', async () => {
+    const page = await client.feed({ limit: 20 })
+    const author = page.items.find((p) => !p.author.custodialRelay)?.author.key
+    expect(author).toBeDefined()
+    if (!author) return
+    const pays = await client.payments({ viewer: author, verified: 'any', limit: 5 })
+    expect(peckViewErrors('PaymentPage', pays)).toEqual([])
+    expect(pays.keys.length).toBeGreaterThan(0)
+  }, 30_000)
 })

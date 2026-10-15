@@ -167,6 +167,24 @@ const older = page.next && (await overlay.notifications({ viewer: loginKey, curs
 Replies, likes, reposts and tips are looked up on the person's newest 2000
 posts; `capped` is true when they have more.
 
+**Payments.** `payments()` lists one person's tips, newest first: `in` (tips
+on their posts) and `out` (tips they sent). `amount` is what the chain shows
+reached the post's author, never the amount the sender claimed, and
+`verifiedBy` says how it was proven. Older payments, recorded before the proof
+method was kept, come back only with `verified: 'any'` and have `verifiedBy:
+null`. Only payments that name a post are known, so unlocks and plain
+transfers are not listed. The overlay reads a precomputed index that runs
+about a minute behind (`asOf`), so merge a wallet's own recent sends locally.
+
+```ts
+const page = await overlay.payments({ viewer: identityKey, verified: 'any', limit: 30 })
+for (const p of page.items) console.log(p.direction, p.amount, p.counterparty?.displayName, p.post?.text)
+const older = page.next && (await overlay.payments({ viewer: identityKey, verified: 'any', cursor: page.next }))
+```
+
+`profile()` also lists the apps a person posts from (`apps`, top ten by post
+count, refreshed every few minutes).
+
 **Errors.** Every failure throws a `ReadError` with a stable `code` and the
 HTTP `status` (0 when there was no response):
 

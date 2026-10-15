@@ -1,0 +1,16 @@
+{
+  "height": 970777,
+  "posts": 116,
+  "authors": 37,
+  "apps": [
+    { "app": "treechat", "count": 80 },
+    { "app": "twetch", "count": 36 }
+  ],
+  "types": [
+    { "type": "reply", "count": 60 },
+    { "type": "post", "count": 44 },
+    { "type": "repost", "count": 12 }
+  ],
+  "tipSats": 0,
+  "lockedSats": 0
+}
