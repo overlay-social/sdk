@@ -69,10 +69,18 @@ export interface PostInput extends ContentInput {
 
 export interface ReplyInput extends ContentInput {
   parentTxid: string
+  /**
+   * A heading slug of the parent when it is a document revision (spec 09 §8),
+   * written as MAP `section` after the reference fields. Build it with
+   * `slug()` or `documentHeadings()`; `replySection()` is the shorthand.
+   */
+  section?: string
 }
 
 export interface QuoteInput extends ContentInput {
   targetTxid: string
+  /** A heading slug of the target document revision (spec 09 §8), as for `ReplyInput.section`. */
+  section?: string
 }
 
 /** Categories peck.world colours and filters its pins by. Any other value is written as given. */
@@ -169,6 +177,20 @@ function txid(name: string, v: unknown): string {
   const t = required(name, v)
   if (!TXID_RE.test(t)) throw new SchemaError(`${name} must be a 64-character hex txid`)
   return t.toLowerCase()
+}
+
+// A section slug as spec 09 §8 produces it: Unicode letters, decimal digits,
+// "-" and "_", already lowercased. Absent stays absent so existing layouts
+// are unchanged byte for byte.
+const SECTION_RE = /^[\p{L}\p{Nd}_-]+$/u
+
+function sectionField(v: string | undefined): Push[] {
+  if (v === undefined) return []
+  if (typeof v !== 'string' || !SECTION_RE.test(v) || v !== v.toLowerCase()) {
+    throw new SchemaError('section must be a heading slug (lowercase letters, digits, "-" and "_"); build it with slug()')
+  }
+  if (v === '7c') throw new SchemaError('section cannot be "7c": the reference overlay reads that push as a separator')
+  return ['section', v]
 }
 
 function trimmed(v: unknown): string | undefined {
@@ -278,6 +300,7 @@ export function reply(input: ReplyInput): SchemaPayload {
   return payload([
     ...contentHead(input, 'post'),
     'context', 'tx', 'tx', parent, 'reply', parent,
+    ...sectionField(input.section),
     ...geoFields(input.geo),
     ...mentionFields(input.mentions),
     ...tagsSection(input.tags),
@@ -290,6 +313,7 @@ export function quote(input: QuoteInput): SchemaPayload {
   return payload([
     ...contentHead(input, 'repost'),
     'tx', target,
+    ...sectionField(input.section),
     ...geoFields(input.geo),
     ...mentionFields(input.mentions),
     ...tagsSection(input.tags),

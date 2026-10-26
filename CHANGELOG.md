@@ -6,6 +6,31 @@ pre-1.0, minor versions may evolve shapes alongside the live overlay contract.
 ## Unreleased
 
 ### Added
+- Documents (overlay.social spec 09) in `@overlay-social/sdk/schema`:
+  `documentRevision()` builds the unsigned revision record (B text as
+  `text/markdown` `utf-8`; MAP `app type post kind doc doc rev [prev] [title]
+  status sha256 [source] [note]`), checking every spec 09 §2 invariant (document
+  id grammar, `rev` ≥ 1, `prev` exactly when `rev` > 1, an uppercase status,
+  no reference or channel keys). Sign it with `signPayload()`, which covers the
+  whole record. It reproduces the spec's 579-byte test vector byte for byte.
+- `verifyDocumentRevision()`: an offline check of one revision from its
+  transaction or script (`ok`, `valid`, `sigOk`, `shaOk`, `signer`, `fields`,
+  `errors`). Verifies BRC77 and BITCOIN_ECDSA over the full preimage, requires
+  the signature to be the last push, rejects body-only signatures, appended
+  data, non-minimal pushes, `rev` as OP_2 and transactions with more than one
+  revision.
+- `verifyChain()`: the canonical history of one document by one author (spec
+  09 §4) as a pure function: chain order (confirmed, height, position, txid),
+  forks and orphans kept in `offChain`, other signers excluded, key-bindings
+  through `identityOf`.
+- `slug()` and `documentHeadings()` (spec 09 §8 heading slugs), and
+  `quoteSection()` / `replySection()`. `quote()` and `reply()` take an
+  optional `section`, written after the reference fields; without it their
+  output is unchanged.
+- `documentSha256()`, `documentBytes()` and the `DOCUMENT_*` constants.
+- `scripts/publish-docs.mjs`: a dry run that builds, signs (ephemeral key)
+  and verifies the revision series of a folder of markdown files across git
+  commits, and prints their sizes. It has no broadcast path.
 - `/v2` client: `payments(query)` reads `GET /v2/payments` (`PaymentPage`):
   one person's tips in and out (`viewer`: an identity key, an address, a
   public key or a handle), newest first, with an exact `next` cursor

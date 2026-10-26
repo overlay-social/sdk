@@ -577,6 +577,58 @@ compressed identity key, and a `peer` equal to the wallet's own key. The
 overlay has no `/v2` friends read yet; `getFriends()` (`GET /v1/friends/:subject`)
 is the read, and takes the identity key.
 
+### Documents (spec 09)
+
+A document (a spec, a policy, any markdown file) is published as a chain of
+revisions. Each revision is one signed post (`type post`, `kind doc`) whose B
+section is the complete text and whose MAP section names it: `doc`, `rev`,
+`prev` (the txid of the revision before), `title`, `status`, the `sha256` of
+the exact text bytes, and optional `source` and `note`. Nothing is edited in
+place: a fix is a new revision.
+
+```ts
+import {
+  documentHeadings, documentRevision, quoteSection, signPayload, slug, verifyChain, verifyDocumentRevision,
+} from '@overlay-social/sdk/schema'
+
+const script = await signPayload(documentRevision({
+  app: 'overlay.social',
+  doc: 'overlay.social/specs/08',
+  rev: 2,
+  prev: rev1Txid,
+  title: 'State anchoring',
+  status: 'IMPLEMENTED',
+  content: markdownText,               // a string (UTF-8) or the exact bytes
+  filename: '08-state-anchoring.md',
+}), { wallet })
+// One revision per transaction; submit to tm_social-content like any post.
+
+verifyDocumentRevision(txOrScript)
+// { ok, valid, sigOk, shaOk, signer, fields, content, errors, ... }
+
+verifyChain(revisions, { doc: 'overlay.social/specs/08', author: identityKey })
+// { history, head, status, offChain, forked, provisional, integrityFailures, excluded, ok }
+
+quoteSection({ app: 'peck.to', text: 'See this', revisionTxid, section: slug('## 4.3 Canonical history') })
+documentHeadings(markdownText) // [{ level, text, slug, line }], repeats numbered -1, -2, ...
+```
+
+`signPayload()` signs the whole record (B, MAP and the AIP header), so `doc`,
+`rev` and `prev` are covered; `verifyDocumentRevision()` refuses the older
+form that signs only the B text, and data appended after the signature. It
+reads the transaction bytes itself, under BRC77 or BITCOIN_ECDSA, and trusts
+no overlay flag. A `sha256` mismatch leaves the revision `valid` (it stays in
+the history, marked) but not `ok`. `verifyChain()` is a pure function of the
+revisions and their block positions: it picks the earliest revision 1 and the
+earliest successor at each step, and returns forks and orphans in `offChain`
+instead of dropping them. Pass `identityOf` to map signing keys to an
+identity through key-bindings. `replySection()` is the reply form.
+
+`scripts/publish-docs.mjs` is a dry run of publishing a folder of markdown
+files from git history as revision series (`npm run build` first). It signs
+with an ephemeral in-memory key, uses placeholder `prev` txids, verifies every
+revision and series, and prints sizes. It has no broadcast code.
+
 ## Sanitising chain content (`/sanitize`)
 
 Post text is written by anyone and can never be deleted from the chain, so it
